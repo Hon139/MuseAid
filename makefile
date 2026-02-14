@@ -9,14 +9,15 @@ DIST_DIR = dist
 
 # Phony targets
 .PHONY: help all build clean install test run dev lint format setup \
-        sync server composition-app gesture-app run-all stop
+	sync server composition-app gesture-app run-all stop install-python
 
 ## all: Build the entire project
 all: clean build
 
 # ---------- Run targets ----------
 
-UV_SYNC = uv sync --python-preference only-system
+## uv sync: try system first, then fall back to managed (grouped so && runs after)
+UV_SYNC = (uv sync --python-preference system || uv sync --python-preference managed)
 
 ## sync: Install dependencies for all sub-projects
 sync:
@@ -75,6 +76,23 @@ build:
 	cd Composition_App && $(UV_SYNC)
 	cd hand-gesture-app && $(UV_SYNC)
 	@echo "Build complete."
+
+## install-python: optional helper to install Python 3.13 on Debian/Ubuntu (requires sudo)
+install-python:
+	@echo "Checking for python3.13..."
+	@if command -v python3.13 >/dev/null 2>&1; then \
+		echo "python3.13 already installed: $$(python3.13 --version)"; \
+	else \
+		if [ -f /etc/os-release ]; then . /etc/os-release; fi; \
+		if echo "$${ID_LIKE:-} $${ID:-}" | grep -Eiq "debian|ubuntu"; then \
+			echo "Detected Debian/Ubuntu family — installing python3.13 via apt (requires sudo)"; \
+			sudo apt-get update && sudo apt-get install -y python3.13 python3.13-venv python3.13-dev || \
+			(echo "apt install failed. You may need to enable a PPA or install manually." && exit 1); \
+		else \
+			echo "Automatic installer only supports Debian/Ubuntu. Please install Python 3.13 manually for your distro."; \
+			exit 1; \
+		fi; \
+	fi
 
 ## clean: Remove all .venv directories and Python caches
 clean:
