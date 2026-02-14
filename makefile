@@ -22,7 +22,7 @@ setup:
 	sudo apt install -y build-essential git lsb-release libcurl4-openssl-dev libssl-dev pkg-config libv4l-dev libgles2-mesa-dev libunwind-dev gpg curl
 	sudo apt update
 	sudo apt install libsmartspectra-dev
-
+	npm install @elevenlabs/elevenlabs-js
 build:
 	@echo "Building $(PROJECT_NAME)..."
 	# Add build commands here
