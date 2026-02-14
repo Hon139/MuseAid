@@ -14,6 +14,8 @@ DIST_DIR = dist
 all: clean build
 
 setup:
+	curl -s "https://presage-security.github.io/PPA/KEY.gpg" | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/presage-technologies.gpg >/dev/null
+	sudo curl -s --compressed -o /etc/apt/sources.list.d/presage-technologies.list "https://presage-security.github.io/PPA/presage-technologies.list"
 	sudo apt update
 	sudo apt install gpg curl
 	sudo apt update
