@@ -12,3 +12,6 @@ response = client.text_to_speech.with_raw_response.convert(
 char_cost = response.headers.get("x-character-count")
 request_id = response.headers.get("request-id")
 audio_data = response.data
+
+
+
