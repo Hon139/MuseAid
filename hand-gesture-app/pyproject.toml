@@ -7,6 +7,7 @@ dependencies = [
     "opencv-python",
     "mediapipe",
     "numpy",
+    "httpx",
 ]
 
 [project.scripts]

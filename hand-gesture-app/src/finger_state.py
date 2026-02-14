@@ -82,6 +82,16 @@ class FingerState:
         )
 
     @property
+    def peace_sign(self) -> bool:
+        """True when index and middle are extended, ring and pinky are not."""
+        return (
+            self.index
+            and self.middle
+            and not self.ring
+            and not self.pinky
+        )
+
+    @property
     def open_palm(self) -> bool:
         """True when 4+ fingers are extended (flat open hand)."""
         return self.count_extended() >= 4

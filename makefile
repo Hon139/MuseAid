@@ -6,28 +6,21 @@ PROJECT_NAME = MuseAid
 BUILD_DIR = build
 SRC_DIR = src
 DIST_DIR = dist
-VENV_DIR = venv
-
-# Default target
-.DEFAULT_GOAL := help
 
 # Phony targets
+<<<<<<< HEAD
 .PHONY: help all build build-gesture build-composition build-elevenlabs clean install test run dev lint format setup venv run-gesture demo-gesture
+=======
+.PHONY: help all build clean install test run dev lint format setup \
+        sync server composition-app gesture-app run-all stop
+>>>>>>> 69799dd (added http server and extras)
 
 ## all: Build the entire project
-all: venv build
+all: clean build
 
-## venv: Create and set up virtual environment
-venv:
-	@echo "Setting up virtual environment..."
-	@if [ ! -d "$(VENV_DIR)" ]; then \
-		python3 -m venv $(VENV_DIR); \
-	fi
-	@echo "Installing dependencies..."
-	@$(VENV_DIR)/bin/pip install --upgrade pip
-	@$(VENV_DIR)/bin/pip install elevenlabs python-dotenv
-	@echo "Virtual environment ready. Activate with: source $(VENV_DIR)/bin/activate"
+# ---------- Run targets ----------
 
+<<<<<<< HEAD
 ## build: Build all project components
 build: build-elevenlabs build-composition build-gesture
 	@echo "All components built successfully!"
@@ -94,10 +87,74 @@ setup: venv
 	fi
 
 ## clean: Remove build artifacts and virtual environments
+=======
+UV_SYNC = uv sync --python-preference only-system
+
+## sync: Install dependencies for all sub-projects
+sync:
+	cd server          && $(UV_SYNC)
+	cd Composition_App && $(UV_SYNC)
+	cd hand-gesture-app && $(UV_SYNC)
+
+## server: Start the MuseAid server (port 8000)
+server:
+	cd server && $(UV_SYNC) && uv run uvicorn museaid_server.main:app --reload --host 0.0.0.0 --port 8000
+
+## composition-app: Start the Composition App
+composition-app:
+	cd Composition_App && $(UV_SYNC) && uv run music-app
+
+## gesture-app: Start the hand-gesture app
+gesture-app:
+	cd hand-gesture-app && $(UV_SYNC) && uv run python -m src.main
+
+## run-all: Launch server, composition app, and gesture app concurrently (Linux/macOS)
+run-all: sync
+	@echo "Starting all MuseAid components..."
+	cd server          && uv run uvicorn museaid_server.main:app --reload --host 0.0.0.0 --port 8000 &
+	@sleep 3
+	cd Composition_App && uv run music-app &
+	cd hand-gesture-app && uv run python -m src.main &
+	@echo "All components started. Press Ctrl+C to stop."
+	@wait
+
+## stop: Kill all MuseAid-related processes
+stop:
+	-pkill -f "uvicorn museaid_server" 2>/dev/null || true
+	-pkill -f "music.app" 2>/dev/null || true
+	-pkill -f "src.main" 2>/dev/null || true
+	@echo "Stopped all MuseAid processes."
+
+# ---------- Setup ----------
+
+setup:
+	curl -s "https://presage-security.github.io/PPA/KEY.gpg" | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/presage-technologies.gpg >/dev/null
+	sudo curl -s --compressed -o /etc/apt/sources.list.d/presage-technologies.list "https://presage-security.github.io/PPA/presage-technologies.list"
+	sudo apt update
+	sudo apt install gpg curl
+	sudo apt update
+	sudo apt install -y build-essential git lsb-release libcurl4-openssl-dev libssl-dev pkg-config libv4l-dev libgles2-mesa-dev libunwind-dev gpg curl
+	sudo apt update
+	sudo apt install libsmartspectra-dev
+	npm install @elevenlabs/elevenlabs-js
+
+# ---------- Build / Clean ----------
+
+## build: Create / refresh virtual environments for all sub-projects
+build:
+	@echo "Building $(PROJECT_NAME) — syncing virtual environments..."
+	cd server          && $(UV_SYNC)
+	cd Composition_App && $(UV_SYNC)
+	cd hand-gesture-app && $(UV_SYNC)
+	@echo "Build complete."
+
+## clean: Remove all .venv directories and Python caches
+>>>>>>> 69799dd (added http server and extras)
 clean:
-	@echo "Cleaning build artifacts..."
-	rm -rf $(BUILD_DIR) $(DIST_DIR)
+	@echo "Cleaning $(PROJECT_NAME)..."
+	rm -rf server/.venv Composition_App/.venv hand-gesture-app/.venv
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+<<<<<<< HEAD
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	@# Clean Python package builds
 	@find . -name "dist" -type d -exec rm -rf {} + 2>/dev/null || true
@@ -159,3 +216,6 @@ demo-gesture: build-gesture
 	@echo "Running gesture recognition demo..."
 	@hand-gesture-app/venv/bin/python hand-gesture-app/demo.py
 
+=======
+	@echo "Clean complete."
+>>>>>>> 69799dd (added http server and extras)

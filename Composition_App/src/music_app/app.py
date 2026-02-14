@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, Qt
+from PyQt6.QtCore import QEasingCurve, QEvent, QPropertyAnimation, Qt
 from PyQt6.QtGui import QKeyEvent
 from PyQt6.QtWidgets import (
     QMainWindow, QVBoxLayout, QWidget, QLabel, QStatusBar, QScrollArea,
@@ -15,6 +15,7 @@ from .audio_engine import AudioEngine
 from .commands import SequenceEditor
 from .midi_support import export_midi, import_midi
 from .models import Sequence
+from .server_client import ServerClient
 from .staff_widget import StaffWidget
 
 
@@ -85,6 +86,9 @@ class MainWindow(QMainWindow):
         export_midi_action = file_menu.addAction("Export MIDI...")
         export_midi_action.triggered.connect(self._export_midi)
 
+        # Redirect mouse-wheel from vertical to horizontal scrolling
+        self._scroll.viewport().installEventFilter(self)
+
         # ── Status bar ───────────────────────────────────────────
         self._status = QStatusBar()
         self.setStatusBar(self._status)
@@ -97,6 +101,26 @@ class MainWindow(QMainWindow):
         self._audio.playback_finished.connect(self._on_playback_finished)
         self._editor.cursor_changed.connect(self._staff.set_cursor)
         self._editor.sequence_changed.connect(self._on_sequence_changed)
+
+        # ── MuseAid server connection ────────────────────────────
+        self._server_client = ServerClient(parent=self)
+        self._server_client.command_received.connect(self._on_remote_command)
+        self._server_client.sequence_received.connect(self._on_remote_sequence)
+        self._server_client.connected.connect(
+            lambda: self._status.showMessage("Connected to MuseAid server")
+        )
+        self._server_client.start()
+
+    # ── Scroll direction fix ────────────────────────────────────
+
+    def eventFilter(self, obj, event):  # noqa: N802
+        """Redirect vertical mouse-wheel scrolling to horizontal."""
+        if obj is self._scroll.viewport() and event.type() == QEvent.Type.Wheel:
+            delta = event.angleDelta().y()
+            hbar = self._scroll.horizontalScrollBar()
+            hbar.setValue(hbar.value() - delta)
+            return True  # consume the event
+        return super().eventFilter(obj, event)
 
     # ── Key handling ─────────────────────────────────────────────
 
@@ -316,6 +340,39 @@ class MainWindow(QMainWindow):
         self._v_anim.setEndValue(target_y)
         self._v_anim.start()
 
+    # ── Remote (server) event handlers ──────────────────────────
+
+    def _on_remote_command(self, command: str) -> None:
+        """Handle a command received from the MuseAid server (via gestures)."""
+        if command == "toggle_playback":
+            self._toggle_playback()
+        elif command == "switch_edit_staff":
+            self._switch_edit_staff()
+        else:
+            self._editor.execute(command)
+
+    def _on_remote_sequence(self, sequence_json: str) -> None:
+        """Handle a full sequence update from the server (via Gemini/speech)."""
+        try:
+            new_seq = Sequence.from_json(sequence_json)
+        except Exception:
+            return
+
+        # Ignore empty sequences from the server (e.g. the default "Untitled"
+        # that the server sends on first connect).  We don't want to blow away
+        # the locally-loaded composition with nothing.
+        if not new_seq.notes:
+            return
+
+        self._sequence = new_seq
+        self._editor.sequence = self._sequence
+        self._editor.cursor = 0
+        self._staff.set_sequence(self._sequence)
+        self._status.showMessage(
+            f"Sequence updated from server — {len(new_seq.notes)} notes"
+        )
+
     def closeEvent(self, event) -> None:  # noqa: N802
+        self._server_client.stop()
         self._audio.cleanup()
         super().closeEvent(event)

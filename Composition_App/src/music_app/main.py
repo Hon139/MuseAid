@@ -21,8 +21,11 @@ def find_project_root() -> Path:
         if (current / "pyproject.toml").exists():
             return current
         current = current.parent
-    # Fallback: use the current working directory
-    return Path.cwd()
+    # Fallback: cwd or cwd/Composition_App when run from parent repo
+    cwd = Path.cwd()
+    if (cwd / "Composition_App" / "pyproject.toml").exists():
+        return cwd / "Composition_App"
+    return cwd
 
 
 def main() -> None:

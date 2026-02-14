@@ -45,8 +45,9 @@ class AudioEngine(QObject):
         self._playing: bool = False
         self._channels: dict[int, pygame.mixer.Channel] = {}
 
-        # Initialize pygame mixer
-        pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=4096)
+        # Only init the mixer subsystem — full pygame.init() conflicts with Qt on Windows
+        pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=4096)
+        pygame.mixer.init()
         pygame.mixer.set_num_channels(8)
         self._channels[0] = pygame.mixer.Channel(0)
         self._channels[1] = pygame.mixer.Channel(1)

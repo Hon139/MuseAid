@@ -35,12 +35,15 @@ from src.config import (
     GESTURE_PITCH_UP,
     GESTURE_SCROLL_BACKWARD,
     GESTURE_SCROLL_FORWARD,
+    GESTURE_SWITCH_STAFF,
     GESTURE_TOGGLE_PLAYBACK,
     INDEX_TIP,
     MIN_FRAMES_FOR_DETECTION,
     PALM_SWIPE_DIRECTIONALITY_RATIO,
     PALM_SWIPE_FRAME_WINDOW,
     PALM_SWIPE_MIN_DISPLACEMENT,
+    PEACE_SIGN_FRAME_WINDOW,
+    PEACE_SIGN_MIN_HOLD_FRAMES,
     PINCH_DISTANCE_THRESHOLD,
     PINCH_FRAME_WINDOW,
     PINCH_OPEN_THRESHOLD,
@@ -71,6 +74,10 @@ class GestureDetector:
         # Pinch state: True when the thumb and index were apart (open) in a
         # recent frame.  A pinch only fires on the transition from open -> closed.
         self._pinch_was_open: bool = False
+        # Peace-sign state: True when the hand was NOT showing a peace sign
+        # recently.  The gesture fires on the transition from inactive -> active,
+        # preventing repeated firing while the pose is held.
+        self._peace_was_inactive: bool = True
 
     # ------------------------------------------------------------------
     # Public API
@@ -91,9 +98,10 @@ class GestureDetector:
 
         # Try each detector in priority order.
         detectors = [
-            self._detect_palm_swipe,  # most specific: requires open palm
-            self._detect_pinch,       # thumb-index tap (toggle playback)
-            self._detect_swipe,       # least specific: index-only + displacement
+            self._detect_palm_swipe,   # most specific: requires open palm
+            self._detect_pinch,        # thumb-index tap (toggle playback)
+            self._detect_peace_sign,   # peace sign (switch edit staff)
+            self._detect_swipe,        # least specific: index-only + displacement
         ]
         for detector in detectors:
             result = detector(buffer, finger_state)
@@ -200,6 +208,47 @@ class GestureDetector:
             return (GESTURE_SCROLL_FORWARD, confidence)
         else:
             return (GESTURE_SCROLL_BACKWARD, confidence)
+
+    # ------------------------------------------------------------------
+    # Peace-sign detection (Switch Staff / edit mode toggle)
+    # ------------------------------------------------------------------
+
+    def _detect_peace_sign(
+        self,
+        buffer: MotionBuffer,
+        finger_state: FingerState,
+    ) -> tuple[str, float] | None:
+        """Detect a peace-sign (V) pose for switching the active edit staff.
+
+        The gesture fires on the *transition* from a non-peace-sign hand
+        state to a stable peace-sign pose.  This prevents repeated firing
+        while the user holds the pose.
+        """
+        if not finger_state.peace_sign:
+            # Hand is not currently showing a peace sign – reset the gate
+            # so the next peace sign will fire.
+            self._peace_was_inactive = True
+            return None
+
+        # Already fired for the current peace-sign hold – wait for reset.
+        if not self._peace_was_inactive:
+            return None
+
+        # Require the peace sign to be stable for several consecutive frames
+        # to avoid misfires from transient finger positions.
+        frames = buffer.recent(PEACE_SIGN_FRAME_WINDOW)
+        if len(frames) < PEACE_SIGN_MIN_HOLD_FRAMES:
+            return None
+
+        recent = frames[-PEACE_SIGN_MIN_HOLD_FRAMES:]
+        peace_count = sum(1 for f in recent if f.finger_state.peace_sign)
+        if peace_count < PEACE_SIGN_MIN_HOLD_FRAMES:
+            return None
+
+        # Transition confirmed – fire and latch.
+        self._peace_was_inactive = False
+        confidence = min(1.0, peace_count / len(recent))
+        return (GESTURE_SWITCH_STAFF, confidence)
 
     # ------------------------------------------------------------------
     # Pinch detection (thumb-index tap for Toggle Playback)

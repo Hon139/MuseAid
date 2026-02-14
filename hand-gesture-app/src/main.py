@@ -4,16 +4,19 @@ Entry point – webcam capture loop.
 Wires together:
   HandTracker  ->  FingerState  ->  MotionBuffer  ->  GestureDetector
                                                    ->  Overlay
-                                                   ->  JSON stdout
+                                                   ->  JSON stdout + HTTP POST
 """
 
 from __future__ import annotations
 
 import json
+import os
 import sys
+import threading
 import time
 
 import cv2
+import httpx
 
 from src.config import (
     CAMERA_HEIGHT,
@@ -30,9 +33,21 @@ from src.overlay import draw_overlay
 # it was detected, so the user has time to read it.
 _GESTURE_DISPLAY_DURATION = 1.2
 
+# MuseAid server URL — override with MUSEAID_SERVER_URL env var.
+_SERVER_URL = os.environ.get("MUSEAID_SERVER_URL", "http://localhost:8000")
+
+
+def _post_to_server(payload: dict) -> None:
+    """Fire-and-forget POST to the MuseAid server (runs in a daemon thread)."""
+    try:
+        httpx.post(f"{_SERVER_URL}/gestures", json=payload, timeout=0.5)
+    except Exception:
+        # Don't crash the gesture loop if the server is unreachable.
+        pass
+
 
 def _emit_json(gesture: str, confidence: float, timestamp: float) -> None:
-    """Write a single JSON line to stdout and flush immediately."""
+    """Write a JSON line to stdout and POST to the MuseAid server."""
     payload = {
         "gesture": gesture,
         "confidence": round(confidence, 3),
@@ -40,6 +55,10 @@ def _emit_json(gesture: str, confidence: float, timestamp: float) -> None:
     }
     sys.stdout.write(json.dumps(payload) + "\n")
     sys.stdout.flush()
+
+    # Non-blocking HTTP POST so the webcam loop is not delayed.
+    t = threading.Thread(target=_post_to_server, args=(payload,), daemon=True)
+    t.start()
 
 
 def main() -> None:

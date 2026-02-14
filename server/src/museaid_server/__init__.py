@@ -1,0 +1,1 @@
+"""MuseAid coordination server."""

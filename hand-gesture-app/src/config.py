@@ -13,6 +13,7 @@ GESTURE_PITCH_DOWN = "PITCH_DOWN"
 GESTURE_TOGGLE_PLAYBACK = "TOGGLE_PLAYBACK"
 GESTURE_SCROLL_FORWARD = "SCROLL_FORWARD"
 GESTURE_SCROLL_BACKWARD = "SCROLL_BACKWARD"
+GESTURE_SWITCH_STAFF = "SWITCH_STAFF"
 
 ALL_GESTURES = [
     GESTURE_PITCH_UP,
@@ -20,6 +21,7 @@ ALL_GESTURES = [
     GESTURE_TOGGLE_PLAYBACK,
     GESTURE_SCROLL_FORWARD,
     GESTURE_SCROLL_BACKWARD,
+    GESTURE_SWITCH_STAFF,
 ]
 
 # ---------------------------------------------------------------------------
@@ -88,6 +90,17 @@ PALM_SWIPE_FRAME_WINDOW = 12
 
 # Minimum number of extended fingers to qualify as an "open palm".
 PALM_SWIPE_MIN_FINGERS = 4
+
+# ---------------------------------------------------------------------------
+# Peace-sign detection (Switch Staff / edit mode toggle)
+# ---------------------------------------------------------------------------
+# Number of recent frames to analyse for peace-sign stability.
+PEACE_SIGN_FRAME_WINDOW = 8
+
+# Within the analysis window, the peace-sign pose must be present in at
+# least this many frames to be considered stable (avoids misfires from
+# transient finger positions).
+PEACE_SIGN_MIN_HOLD_FRAMES = 4
 
 # ---------------------------------------------------------------------------
 # Pinch detection (thumb-index tap for Toggle Playback)
