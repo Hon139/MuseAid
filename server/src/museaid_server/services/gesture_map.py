@@ -17,7 +17,8 @@ GESTURE_TO_COMMAND: dict[str, str] = {
     "SWITCH_STAFF": "switch_edit_staff",
     "ADD_NOTE": "add_note",
     "DELETE_NOTE": "delete_note",
-    "TOGGLE_INSTRUMENT": "toggle_instrument",
+    # Keep gesture behavior aligned with keyboard Tab: cursor/lane switch only.
+    "TOGGLE_INSTRUMENT": "switch_edit_staff",
     "SPLIT_NOTE": "split_note",
     "MERGE_NOTE": "merge_note",
     "MAKE_REST": "make_rest",
