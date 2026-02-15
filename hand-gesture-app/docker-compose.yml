@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  hand-gesture-app:
+    build: .
+    image: hand-gesture-app:local
+    # Use bridge mode so Docker Desktop can publish ports back to host localhost.
+    ports:
+      - "8090:8090"  # Browser preview: http://localhost:8090/
+    environment:
+      - CAMERA_SRC=http://100.66.77.132:7123/stream.mjpg
+      - HEADLESS=1
+      - ENABLE_MJPEG=1
+      - MJPEG_PORT=8090
+      - MUSEAID_SERVER_URL=http://localhost:8000
+    restart: unless-stopped

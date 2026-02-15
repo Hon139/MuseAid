@@ -169,6 +169,17 @@ OVERLAY_TRAIL_MAX_POINTS = 30
 # ---------------------------------------------------------------------------
 # Webcam
 # ---------------------------------------------------------------------------
+import os
+
+# Backwards-compatible integer camera index used for local webcams (e.g. 0)
 CAMERA_INDEX = 0
+
+# Optional camera source override. If set, the app will use this value
+# instead of CAMERA_INDEX. It can be an integer string (e.g. "0") or a
+# video stream URL (rtsp://... or http(s)://... or file path).
+# Set via the CAMERA_SRC environment variable when running in Docker.
+CAMERA_SRC = os.environ.get("CAMERA_SRC")
+
+# Recommended default capture size when using a Pi camera or USB webcam.
 CAMERA_WIDTH = 1280
 CAMERA_HEIGHT = 720
