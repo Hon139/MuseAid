@@ -9,7 +9,7 @@ from PyQt6.QtGui import QKeyEvent
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow, QVBoxLayout, QWidget, QLabel, QStatusBar, QScrollArea,
-    QFileDialog, QHBoxLayout, QPushButton,
+    QFileDialog, QHBoxLayout, QPushButton, QInputDialog, QMessageBox,
 )
 
 from .audio_engine import AudioEngine
@@ -17,6 +17,7 @@ from .commands import SequenceEditor
 from .models import Sequence, PITCH_ORDER, KEY_SIGNATURES
 from .server_client import ServerClient
 from .staff_widget import StaffWidget
+from . import dbUtil
 
 
 class MainWindow(QMainWindow):
@@ -508,58 +509,116 @@ class MainWindow(QMainWindow):
             self._status.showMessage(f"MIDI import failed: {exc}")
 
     def _load_json_sequence(self) -> None:
-        """Load a sequence JSON from the examples directory."""
-        start_dir = Path(self._project_root) / "examples"
-        file_path, _ = QFileDialog.getOpenFileName(
+        """Load a sequence JSON by ID from MongoDB."""
+        id_input, ok = QInputDialog.getInt(
             self,
-            "Load Sequence JSON",
-            str(start_dir),
-            "JSON Files (*.json)",
+            "Load Sequence",
+            "Enter sequence ID:",
+            value=1,
+            min=1,
+            max=999999
         )
-        if not file_path:
+        if not ok:
             return
 
         try:
-            new_seq = Sequence.from_file(Path(file_path))
-            self._sequence = new_seq
-            self._editor.sequence = self._sequence
-            self._edit_cursors = [0, 0]
-            self._active_edit_cursor_slot = 0
-            self._active_cursor_focus = 0
-            self._playback_cursor_index = 0
-            self._playback_start_index = 0
-            self._editor.cursor = 0
-            self._staff.set_sequence(self._sequence)
-            self._staff.set_playback_cursor(0 if self._sequence.notes else -1)
-            self._reset_key_cycle_memory()
-            self._refresh_title()
-            self._status.showMessage(f"Loaded JSON: {Path(file_path).name}")
+            self._status.showMessage(f"Loading sequence with ID: {id_input}...")
+            
+            # Check if entry exists first
+            if not dbUtil.entry_exists(id_input):
+                self._status.showMessage(f"No sequence found with ID: {id_input}")
+                return
+            
+            # Fetch the entry from MongoDB
+            entry = dbUtil.get_entry_by_id(id_input)
+            if entry and "data" in entry:
+                sequence_data = entry["data"]
+                
+                # Create a new sequence from the fetched data
+                if isinstance(sequence_data, str):
+                    # If the data is a JSON string, use it directly
+                    new_sequence = Sequence.from_json(sequence_data)
+                else:
+                    # If the data is a dict, convert to JSON string first
+                    import json
+                    json_str = json.dumps(sequence_data) if isinstance(sequence_data, dict) else str(sequence_data)
+                    new_sequence = Sequence.from_json(json_str)
+                
+                # Update the current sequence
+                self._sequence = new_sequence
+                
+                # Update the editor with the new sequence
+                self._editor.sequence = new_sequence
+                self._editor.cursor = 0  # Reset cursor to beginning
+                
+                # Update the staff widget
+                self._staff.set_sequence(self._sequence)
+                
+                # Reset cursors and refresh UI
+                self._edit_cursors = [0, 0]
+                self._playback_cursor_index = 0
+                self._playback_start_index = 0
+                self._active_edit_cursor_slot = 0
+                self._active_cursor_focus = 0
+                
+                # Sync staff cursors and refresh display
+                self._sync_staff_edit_cursors()
+                self._refresh_title()
+                self._reset_key_cycle_memory()
+                
+                # Emit signals to update UI components
+                self._editor.sequence_changed.emit()
+                self._editor.cursor_changed.emit(0)
+                
+                self._status.showMessage(f"Successfully loaded sequence '{new_sequence.name}' (ID: {id_input})")
+            else:
+                self._status.showMessage(f"Invalid data format for sequence ID: {id_input}")
+                
         except Exception as exc:  # pragma: no cover - GUI feedback path
-            self._status.showMessage(f"JSON load failed: {exc}")
+            self._status.showMessage(f"Load failed for ID {id_input}: {exc}")
 
     def _save_json_sequence(self) -> None:
-        """Save the current sequence JSON into the examples directory."""
-        start_dir = Path(self._project_root) / "examples"
-        start_dir.mkdir(parents=True, exist_ok=True)
-        default_name = f"{self._sequence.name.replace(' ', '_')}.json"
-        file_path, _ = QFileDialog.getSaveFileName(
+        """Save the current sequence to MongoDB database."""
+        id_input, ok = QInputDialog.getInt(
             self,
-            "Save Sequence JSON",
-            str(start_dir / default_name),
-            "JSON Files (*.json)",
+            "Save Sequence",
+            "Enter sequence ID:",
+            value=1,
+            min=1,
+            max=999999
         )
-        if not file_path:
+        if not ok:
             return
 
-        out = Path(file_path)
-        if out.suffix.lower() != ".json":
-            out = out.with_suffix(".json")
-
         try:
-            self._sequence.save(out)
-            self._status.showMessage(f"Saved JSON: {out.name}")
-        except Exception as exc:  # pragma: no cover - GUI feedback path
-            self._status.showMessage(f"JSON save failed: {exc}")
+            self._status.showMessage(f"Saving sequence to database with ID: {id_input}...")
+            
+            # Convert sequence to JSON format
+            sequence_json = self._sequence.to_json()
+            
+            # Check if entry already exists
+            if dbUtil.entry_exists(id_input):
+                reply = QMessageBox.question(
+                    self,
+                    "Confirm Overwrite",
+                    f"A sequence with ID {id_input} already exists. Do you want to overwrite it?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
+                )
+                if reply != QMessageBox.StandardButton.Yes:
+                    self._status.showMessage("Save cancelled")
+                    return
+            
+            # Save to MongoDB
+            result = dbUtil.add_entry(id_input, sequence_json)
+            
+            if result:
+                self._status.showMessage(f"Successfully saved sequence '{self._sequence.name}' to database (ID: {id_input})")
+            else:
+                self._status.showMessage(f"Failed to save sequence to database")
+                
+        except Exception as exc:
+            self._status.showMessage(f"Database save failed: {exc}")
 
     def _export_midi(self) -> None:
         """Export current sequence as MIDI."""

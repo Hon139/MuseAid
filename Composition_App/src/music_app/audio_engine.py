@@ -63,19 +63,32 @@ class AudioEngine(QObject):
         self._events: list[tuple[float, list[tuple[int, Note]]]] = []
         self._event_index: int = 0
         self._playing: bool = False
-        self._channels: dict[int, pygame.mixer.Channel] = {}
+        self._channels: dict[int, any] = {}
+        self._audio_available: bool = False
 
-        # Only init the mixer subsystem — full pygame.init() conflicts with Qt on Windows
-        pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=4096)
-        pygame.mixer.init()
-        pygame.mixer.set_num_channels(32)
-        self._channels[0] = pygame.mixer.Channel(0)
-        self._channels[1] = pygame.mixer.Channel(1)
+        # Try to initialize audio - gracefully handle failures
+        try:
+            # Only init the mixer subsystem — full pygame.init() conflicts with Qt on Windows
+            pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=4096)
+            pygame.mixer.init()
+            pygame.mixer.set_num_channels(32)
+            self._channels[0] = pygame.mixer.Channel(0)
+            self._channels[1] = pygame.mixer.Channel(1)
+            self._audio_available = True
+            print("Audio system initialized successfully")
+        except pygame.error as e:
+            print(f"Warning: Audio initialization failed: {e}")
+            print("Running in silent mode - visual playback only")
+            self._audio_available = False
 
         self._load_samples()
 
     def _load_samples(self) -> None:
         """Scan the data directory and load samples for all instruments."""
+        if not self._audio_available:
+            print("Audio not available - skipping sample loading")
+            return
+            
         if not self._data_dir.exists():
             print(f"Warning: Data directory {self._data_dir} does not exist.")
             return
@@ -151,7 +164,7 @@ class AudioEngine(QObject):
 
     def play_note(self, pitch: str, instrument: int = 0, sample_bank: str | None = None) -> None:
         """Play a single note sample on the selected instrument channel."""
-        if pitch == "REST":
+        if pitch == "REST" or not self._audio_available:
             return
 
         # First priority: explicit sample bank from JSON (folder name under data/).
@@ -181,7 +194,7 @@ class AudioEngine(QObject):
             print(f"Warning: No sample for {pitch} (instrument {instrument})")
 
     @staticmethod
-    def _resolve_sample_pitch(pitch: str, inst_samples: dict[str, pygame.mixer.Sound]) -> str | None:
+    def _resolve_sample_pitch(pitch: str, inst_samples: dict[str, any]) -> str | None:
         """Resolve requested pitch to an available sample key.
 
         Supports:
@@ -301,4 +314,8 @@ class AudioEngine(QObject):
 
     def cleanup(self) -> None:
         self._timer.stop()
-        pygame.mixer.quit()
+        if self._audio_available:
+            try:
+                pygame.mixer.quit()
+            except:
+                pass  # Ignore cleanup errors

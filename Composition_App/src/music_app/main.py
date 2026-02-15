@@ -27,7 +27,6 @@ def find_project_root() -> Path:
         return cwd / "Composition_App"
     return cwd
 
-
 def main() -> None:
     """Launch the music app."""
     root = find_project_root()
