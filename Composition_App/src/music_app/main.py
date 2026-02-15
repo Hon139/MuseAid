@@ -65,8 +65,8 @@ def main() -> None:
 
 
     #TODO CHANGE
-    # window.showFullScreen()
-    window.show()
+    window.showFullScreen()
+    #window.show()
 
     sys.exit(app.exec())
 
