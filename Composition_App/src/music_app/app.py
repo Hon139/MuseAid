@@ -91,30 +91,37 @@ class MainWindow(QMainWindow):
         self._save_json_button = QPushButton("Upload")
         self._upload_button = QPushButton("Load JSON")
         self._download_button = QPushButton("Save JSON")
+        self._stt_button = QPushButton("STT")
         self._load_json_button.setFixedHeight(28)
         self._save_json_button.setFixedHeight(28)
         self._upload_button.setFixedHeight(28)
         self._download_button.setFixedHeight(28)
+        self._stt_button.setFixedHeight(28)
         self._load_json_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._save_json_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._upload_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._download_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._stt_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._load_json_button.setAutoDefault(False)
         self._save_json_button.setAutoDefault(False)
         self._upload_button.setAutoDefault(False)
         self._download_button.setAutoDefault(False)
+        self._stt_button.setAutoDefault(False)
         self._load_json_button.setDefault(False)
         self._save_json_button.setDefault(False)
         self._upload_button.setDefault(False)
         self._download_button.setDefault(False)
+        self._stt_button.setDefault(False)
         self._load_json_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._save_json_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._upload_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._download_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._stt_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._load_json_button.clicked.connect(self._load_json_sequence)
         self._save_json_button.clicked.connect(self._save_json_sequence)
         self._upload_button.clicked.connect(self._upload_json_file)
         self._download_button.clicked.connect(self._download_json_file)
+        self._stt_button.clicked.connect(self._on_stt_button_clicked)
 
         # Per-lane sample bank selectors (left side)
         self._bank_combo_boxes: dict[int, QComboBox] = {}
@@ -220,6 +227,7 @@ class MainWindow(QMainWindow):
         top_bar_layout.addWidget(self._save_json_button)
         top_bar_layout.addWidget(self._upload_button)
         top_bar_layout.addWidget(self._download_button)
+        top_bar_layout.addWidget(self._stt_button)
 
         self._content_row = QWidget()
         content_layout = QHBoxLayout(self._content_row)
@@ -516,6 +524,7 @@ class MainWindow(QMainWindow):
         self._save_json_button.setStyleSheet(button_style)
         self._upload_button.setStyleSheet(button_style)
         self._download_button.setStyleSheet(button_style)
+        self._stt_button.setStyleSheet(button_style)
         combo_style = (
             "QComboBox {"
             f"  background: {button_bg};"
@@ -832,6 +841,11 @@ class MainWindow(QMainWindow):
             self._status.showMessage(f"Saved JSON: {out.name}")
         except Exception as exc:  # pragma: no cover - GUI feedback path
             self._status.showMessage(f"JSON save failed: {exc}")
+
+    def _on_stt_button_clicked(self) -> None:
+        """Handle STT (Speech-to-Text) button click."""
+        # TODO: Implement speech-to-text functionality
+        # GEMINI CLAL HERE
 
     def _export_midi(self) -> None:
         """Export current sequence as MIDI."""
