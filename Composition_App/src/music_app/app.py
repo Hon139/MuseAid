@@ -61,6 +61,40 @@ class SttRecordAndSendWorker(QThread):
                 wf.writeframes(pcm.tobytes())
             return buffer.getvalue()
 
+    @staticmethod
+    def _resolve_input_sample_rate(sd, preferred_rate: int) -> int:
+        """Pick a microphone sample rate supported by the active input device."""
+        candidates: list[int] = [preferred_rate, 16000, 44100, 48000]
+
+        # Include the device's advertised default sample rate when available.
+        try:
+            default_in = sd.default.device[0]
+            if default_in is not None and default_in >= 0:
+                dev = sd.query_devices(default_in, "input")
+                default_sr = int(dev.get("default_samplerate", 0) or 0)
+                if default_sr > 0:
+                    candidates.append(default_sr)
+        except Exception:
+            pass
+
+        # Remove duplicates while preserving order.
+        deduped: list[int] = []
+        for c in candidates:
+            if c > 0 and c not in deduped:
+                deduped.append(c)
+
+        for rate in deduped:
+            try:
+                sd.check_input_settings(channels=1, dtype="float32", samplerate=rate)
+                return rate
+            except Exception:
+                continue
+
+        raise RuntimeError(
+            "No valid microphone sample rate found for this input device. "
+            "Tried: " + ", ".join(str(r) for r in deduped)
+        )
+
     def run(self) -> None:  # noqa: D401
         try:
             from dotenv import load_dotenv
@@ -77,7 +111,10 @@ class SttRecordAndSendWorker(QThread):
                     print(f"[STT mic] {status}")
                 self._chunks.append(indata.copy())
 
-            self._emit_status("STT: recording... click STT again to stop")
+            self._sample_rate = self._resolve_input_sample_rate(sd, self._sample_rate)
+            self._emit_status(
+                f"STT: recording at {self._sample_rate} Hz... click STT again to stop"
+            )
             with sd.InputStream(
                 samplerate=self._sample_rate,
                 channels=1,
