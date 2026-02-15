@@ -56,6 +56,8 @@ class AudioEngine(QObject):
         self._samples: dict[int, dict[str, pygame.mixer.Sound]] = {}
         # samples_by_bank[folder_name][pitch] = Sound
         self._samples_by_bank: dict[str, dict[str, pygame.mixer.Sound]] = {}
+        # default bank by instrument lane, configurable from UI
+        self._default_sample_banks: dict[int, str | None] = {}
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._play_next)
@@ -123,6 +125,27 @@ class AudioEngine(QObject):
             banks = ", ".join(sorted(self._samples_by_bank.keys()))
             print(f"Available sample banks: {banks}")
 
+        # Initialize per-lane defaults from configured folders where available.
+        self._default_sample_banks = {}
+        for inst_idx, inst in enumerate(INSTRUMENT_DEFS):
+            folder = inst["folder"]
+            self._default_sample_banks[inst_idx] = folder if folder in self._samples_by_bank else None
+
+    def available_sample_banks(self) -> list[str]:
+        """Return discovered one-folder-per-instrument bank names."""
+        return sorted(self._samples_by_bank.keys())
+
+    def default_sample_bank(self, instrument: int) -> str | None:
+        """Return current default bank for an instrument lane."""
+        return self._default_sample_banks.get(instrument)
+
+    def set_default_sample_bank(self, instrument: int, sample_bank: str | None) -> None:
+        """Set lane default bank (None => fallback to index-based routing)."""
+        if sample_bank and sample_bank in self._samples_by_bank:
+            self._default_sample_banks[instrument] = sample_bank
+        else:
+            self._default_sample_banks[instrument] = None
+
     def _load_sample_files_from_folder(
         self,
         target: dict[str, pygame.mixer.Sound],
@@ -167,9 +190,11 @@ class AudioEngine(QObject):
         if pitch == "REST" or not self._audio_available:
             return
 
-        # First priority: explicit sample bank from JSON (folder name under data/).
-        if sample_bank:
-            bank_samples = self._samples_by_bank.get(sample_bank, {})
+        # First priority: explicit per-note bank from JSON.
+        # Second priority: per-lane default bank from UI.
+        requested_bank = sample_bank or self._default_sample_banks.get(instrument)
+        if requested_bank:
+            bank_samples = self._samples_by_bank.get(requested_bank, {})
             sample_pitch = self._resolve_sample_pitch(pitch, bank_samples)
             sound = bank_samples.get(sample_pitch) if sample_pitch else None
             if sound is not None:

@@ -8,6 +8,8 @@ from PyQt6.QtCore import QEasingCurve, QEvent, QPropertyAnimation, Qt
 from PyQt6.QtGui import QKeyEvent
 from PyQt6.QtWidgets import (
     QApplication,
+    QComboBox,
+    QSizePolicy,
     QMainWindow, QVBoxLayout, QWidget, QLabel, QStatusBar, QScrollArea,
     QFileDialog, QHBoxLayout, QPushButton, QInputDialog, QMessageBox,
 )
@@ -100,6 +102,52 @@ class MainWindow(QMainWindow):
         self._load_json_button.clicked.connect(self._load_json_sequence)
         self._save_json_button.clicked.connect(self._save_json_sequence)
 
+        # Per-lane sample bank selectors (left side)
+        self._bank_combo_boxes: dict[int, QComboBox] = {}
+        self._left_panel = QWidget()
+        self._left_panel.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Maximum)
+        left_layout = QVBoxLayout(self._left_panel)
+        left_layout.setContentsMargins(4, 4, 4, 4)
+        left_layout.setSpacing(4)
+
+        available_banks = self._audio.available_sample_banks()
+        for inst in (0, 1):
+            row = QWidget()
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(4)
+
+            label = QLabel(f"I{inst + 1}")
+            label.setMinimumWidth(14)
+            combo = QComboBox()
+            combo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            combo.setMinimumWidth(100)
+            combo.setMaximumWidth(116)
+            combo.setMinimumHeight(22)
+            combo.addItem("Auto", None)
+            combo.setToolTip("Select default sample bank")
+            for bank in available_banks:
+                display_bank = bank.replace("instrument_", "i")
+                combo.addItem(display_bank, bank)
+
+            default_bank = self._audio.default_sample_bank(inst)
+            if default_bank:
+                idx = combo.findData(default_bank)
+                if idx >= 0:
+                    combo.setCurrentIndex(idx)
+
+            combo.currentIndexChanged.connect(
+                lambda _idx, instrument=inst, box=combo: self._on_instrument_bank_changed(
+                    instrument,
+                    box.currentData(),
+                )
+            )
+
+            self._bank_combo_boxes[inst] = combo
+            row_layout.addWidget(label)
+            row_layout.addWidget(combo)
+            left_layout.addWidget(row)
+
         # Scroll area for the staff (in case it gets tall with 2 lines)
         self._scroll = QScrollArea()
         self._scroll.setWidget(self._staff)
@@ -127,8 +175,16 @@ class MainWindow(QMainWindow):
         top_bar_layout.addWidget(self._load_json_button)
         top_bar_layout.addWidget(self._save_json_button)
 
+        self._content_row = QWidget()
+        content_layout = QHBoxLayout(self._content_row)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
+
+        content_layout.addWidget(self._left_panel, alignment=Qt.AlignmentFlag.AlignTop)
+        content_layout.addWidget(self._scroll, stretch=1)
+
         layout.addWidget(self._top_bar)
-        layout.addWidget(self._scroll, stretch=1)
+        layout.addWidget(self._content_row, stretch=1)
         self.setCentralWidget(central)
         self.setFocus()
         self._reset_key_cycle_memory()
@@ -180,6 +236,12 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         if app is not None:
             app.quit()
+
+    def _on_instrument_bank_changed(self, instrument: int, sample_bank: str | None) -> None:
+        """Apply UI-selected default sample bank for an instrument lane."""
+        self._audio.set_default_sample_bank(instrument, sample_bank)
+        label = sample_bank if sample_bank else "Auto"
+        self._status.showMessage(f"Instrument {instrument + 1} bank: {label}")
 
     # ── Scroll direction fix ────────────────────────────────────
 
@@ -366,6 +428,13 @@ class MainWindow(QMainWindow):
         self._title_label.setStyleSheet(
             f"font-size: 14px; font-weight: 700; padding: 8px 10px; color: {title_color}; background: transparent;"
         )
+        self._left_panel.setStyleSheet(
+            f"background: {scroll_bg};"
+            "border: none;"
+            f"min-width: 108px;"
+            f"max-width: 122px;"
+        )
+        self._content_row.setStyleSheet(f"background: {scroll_bg};")
         button_style = (
             "QPushButton {"
             f"  background: {button_bg};"
@@ -380,6 +449,25 @@ class MainWindow(QMainWindow):
         )
         self._load_json_button.setStyleSheet(button_style)
         self._save_json_button.setStyleSheet(button_style)
+        combo_style = (
+            "QComboBox {"
+            f"  background: {button_bg};"
+            f"  border: 1px solid {button_border};"
+            "  border-radius: 8px;"
+            f"  color: {button_fg};"
+            "  font-size: 11px;"
+            "  padding: 2px 18px 2px 6px;"
+            "}"
+            f"QComboBox:hover {{ background: {button_hover}; }}"
+            "QComboBox QAbstractItemView {"
+            f"  background: {button_bg};"
+            f"  border: 1px solid {button_border};"
+            f"  color: {button_fg};"
+            "  font-size: 11px;"
+            "}"
+        )
+        for box in self._bank_combo_boxes.values():
+            box.setStyleSheet(combo_style)
         self._scroll.setStyleSheet(
             f"QScrollArea {{ border: none; background: {scroll_bg}; }}"
             f"QScrollBar:vertical, QScrollBar:horizontal {{ background: {bar_bg}; border-radius: 6px; }}"
