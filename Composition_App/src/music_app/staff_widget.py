@@ -376,10 +376,33 @@ class StaffWidget(QWidget):
         p.setPen(QPen(self._colors["playback"], 2.2))
         p.drawLine(int(x), int(top), int(x), int(bot))
 
+    @staticmethod
+    def _rest_note_type(note: Note) -> NoteType:
+        """Resolve rest glyph type safely, preferring duration when available.
+
+        Some imported/generated notes may carry a stale/unsupported ``note_type``
+        while duration is correct. This keeps rest rendering stable.
+        """
+        d = float(note.duration)
+        if abs(d - 4.0) < 1e-6:
+            return NoteType.WHOLE
+        if abs(d - 2.0) < 1e-6:
+            return NoteType.HALF
+        if abs(d - 1.0) < 1e-6:
+            return NoteType.QUARTER
+        if abs(d - 0.5) < 1e-6:
+            return NoteType.EIGHTH
+        if abs(d - 0.25) < 1e-6:
+            return NoteType.SIXTEENTH
+        try:
+            return note.get_note_type()
+        except Exception:
+            return NoteType.QUARTER
+
     # ---- rests ----
     def _draw_rest(self, p: QPainter, gi: int, note: Note, ln: int, idx: int) -> None:
         cx = self._note_x(idx)
-        nt = note.get_note_type()
+        nt = self._rest_note_type(note)
         inst = note.instrument
         mid_y = self._staff_line_y(ln, 2, inst)
 
@@ -413,25 +436,23 @@ class StaffWidget(QWidget):
             p.drawLine(int(cx + 4), int(y0 + s), int(cx - 4), int(y0 + 2 * s))
             p.drawLine(int(cx - 4), int(y0 + 2 * s), int(cx + 4), int(y0 + 3 * s))
         elif nt == NoteType.EIGHTH:
-            p.setPen(QPen(color, 2.2))
-            y0 = mid_y - self.LINE_SPACING * 0.5
-            p.setBrush(QBrush(color))
-            p.drawEllipse(QPointF(cx + 3, y0), 3, 3)
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            p.drawLine(int(cx + 3), int(y0), int(cx - 5), int(y0 + self.LINE_SPACING * 1.5))
-        else:  # sixteenth
-            p.setPen(QPen(color, 2.1))
-            y0 = mid_y - self.LINE_SPACING * 0.55
-            p.setBrush(QBrush(color))
-            p.drawEllipse(QPointF(cx + 3, y0), 3, 3)
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            p.drawLine(int(cx + 3), int(y0), int(cx - 5), int(y0 + self.LINE_SPACING * 1.55))
-            p.drawLine(
-                int(cx + 1),
-                int(y0 + self.LINE_SPACING * 0.35),
-                int(cx - 7),
-                int(y0 + self.LINE_SPACING * 1.9),
-            )
+            # Unicode musical symbol: EIGHTH REST (𝄾)
+            p.setFont(QFont("Segoe UI Symbol", 20))
+            p.setPen(color)
+            p.drawText(int(cx - 8), int(mid_y + self.LINE_SPACING * 0.7), "𝄾")
+        elif nt == NoteType.SIXTEENTH:
+            # Unicode musical symbol: SIXTEENTH REST (𝄿)
+            p.setFont(QFont("Segoe UI Symbol", 20))
+            p.setPen(color)
+            p.drawText(int(cx - 8), int(mid_y + self.LINE_SPACING * 0.7), "𝄿")
+        else:
+            # Fallback to quarter-rest style for unsupported/custom durations.
+            p.setPen(QPen(color, 2.5))
+            s = self.LINE_SPACING * 0.5
+            y0 = self._staff_line_y(ln, 1, inst)
+            p.drawLine(int(cx - 4), int(y0), int(cx + 4), int(y0 + s))
+            p.drawLine(int(cx + 4), int(y0 + s), int(cx - 4), int(y0 + 2 * s))
+            p.drawLine(int(cx - 4), int(y0 + 2 * s), int(cx + 4), int(y0 + 3 * s))
 
         if is_active_cur or is_inactive_cur:
             p.setPen(Qt.PenStyle.NoPen)
@@ -538,21 +559,6 @@ class StaffWidget(QWidget):
             p.setFont(QFont("serif", 12, QFont.Weight.Bold))
             p.setPen(color)
             p.drawText(int(cx - rx - 20), int(cy + 5), "♯")
-
-        # small visual marker for instrument 2
-        if note.instrument == 1:
-            p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QBrush(self._colors["inst2"]))
-            diamond = QPainterPath()
-            dx = cx + rx + 8
-            dy = cy
-            diamond.moveTo(dx, dy - 4)
-            diamond.lineTo(dx + 4, dy)
-            diamond.lineTo(dx, dy + 4)
-            diamond.lineTo(dx - 4, dy)
-            diamond.closeSubpath()
-            p.drawPath(diamond)
-            p.setBrush(Qt.BrushStyle.NoBrush)
 
         if is_active_cur or is_inactive_cur:
             p.setPen(Qt.PenStyle.NoPen)

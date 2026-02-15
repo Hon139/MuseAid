@@ -150,16 +150,30 @@ class MainWindow(QMainWindow):
             combo.setMinimumWidth(110)
             combo.setMaximumWidth(120)
             combo.setMinimumHeight(22)
-            combo.addItem("Auto", None)
             combo.setToolTip("Select default sample bank")
             for bank in available_banks:
                 combo.addItem(bank, bank)
 
-            default_bank = self._audio.default_sample_bank(inst)
-            if default_bank:
-                idx = combo.findData(default_bank)
-                if idx >= 0:
-                    combo.setCurrentIndex(idx)
+            # Default both lanes to piano when available (case-insensitive).
+            preferred_default = "piano"
+            idx = combo.findData(preferred_default)
+            if idx < 0:
+                for i in range(combo.count()):
+                    data = combo.itemData(i)
+                    if isinstance(data, str) and data.lower() == preferred_default:
+                        idx = i
+                        break
+            if idx < 0:
+                for i in range(combo.count()):
+                    data = combo.itemData(i)
+                    if isinstance(data, str) and preferred_default in data.lower():
+                        idx = i
+                        break
+            if idx < 0 and combo.count() > 0:
+                idx = 0
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
+                self._audio.set_default_sample_bank(inst, combo.itemData(idx))
 
             combo.currentIndexChanged.connect(
                 lambda _idx, instrument=inst, box=combo: self._on_instrument_bank_changed(

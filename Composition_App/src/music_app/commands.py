@@ -107,8 +107,15 @@ class SequenceEditor(QObject):
     def pitch_up(self) -> None:
         """Shift the selected note up one semitone."""
         note = self.current_note
-        if note is None or note.is_rest:
+        if note is None:
             return
+
+        if note.is_rest:
+            seed_idx = self._rest_seed_pitch_index()
+            note.pitch = PITCH_ORDER[min(len(PITCH_ORDER) - 1, seed_idx + 1)]
+            self.sequence_changed.emit()
+            return
+
         idx = note.pitch_index()
         if idx < len(PITCH_ORDER) - 1:
             note.pitch = PITCH_ORDER[idx + 1]
@@ -117,12 +124,38 @@ class SequenceEditor(QObject):
     def pitch_down(self) -> None:
         """Shift the selected note down one semitone."""
         note = self.current_note
-        if note is None or note.is_rest:
+        if note is None:
             return
+
+        if note.is_rest:
+            seed_idx = self._rest_seed_pitch_index()
+            note.pitch = PITCH_ORDER[max(0, seed_idx - 1)]
+            self.sequence_changed.emit()
+            return
+
         idx = note.pitch_index()
         if idx > 0:
             note.pitch = PITCH_ORDER[idx - 1]
             self.sequence_changed.emit()
+
+    def _rest_seed_pitch_index(self) -> int:
+        """Find a nearby non-rest pitch index to seed rest->note conversion."""
+        if not self.sequence.notes:
+            return 0
+
+        # Prefer previous melodic context.
+        for i in range(self._cursor - 1, -1, -1):
+            n = self.sequence.notes[i]
+            if not n.is_rest and n.pitch in PITCH_ORDER:
+                return PITCH_ORDER.index(n.pitch)
+
+        # Then look ahead.
+        for i in range(self._cursor + 1, len(self.sequence.notes)):
+            n = self.sequence.notes[i]
+            if not n.is_rest and n.pitch in PITCH_ORDER:
+                return PITCH_ORDER.index(n.pitch)
+
+        return 0
 
     # ── Add / Remove ─────────────────────────────────────────────
 

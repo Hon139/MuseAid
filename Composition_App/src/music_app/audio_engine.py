@@ -58,6 +58,7 @@ class AudioEngine(QObject):
         self._samples_by_bank: dict[str, dict[str, pygame.mixer.Sound]] = {}
         # default bank by instrument lane, configurable from UI
         self._default_sample_banks: dict[int, str | None] = {}
+        self._auto_default_banks: dict[int, str | None] = {}
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._play_next)
@@ -127,11 +128,21 @@ class AudioEngine(QObject):
             banks = ", ".join(sorted(self._samples_by_bank.keys()))
             print(f"Available sample banks: {banks}")
 
-        # Initialize per-lane defaults from configured folders where available.
+        # Initialize per-lane defaults. Prefer configured folders, otherwise
+        # fall back to discovered banks by index so "Auto" always has a target.
         self._default_sample_banks = {}
+        self._auto_default_banks = {}
+        discovered_banks = sorted(self._samples_by_bank.keys())
         for inst_idx, inst in enumerate(INSTRUMENT_DEFS):
             folder = inst["folder"]
-            self._default_sample_banks[inst_idx] = folder if folder in self._samples_by_bank else None
+            auto_bank: str | None = None
+            if folder in self._samples_by_bank:
+                auto_bank = folder
+            elif inst_idx < len(discovered_banks):
+                auto_bank = discovered_banks[inst_idx]
+
+            self._auto_default_banks[inst_idx] = auto_bank
+            self._default_sample_banks[inst_idx] = auto_bank
 
     def available_sample_banks(self) -> list[str]:
         """Return discovered one-folder-per-instrument bank names."""
@@ -142,7 +153,11 @@ class AudioEngine(QObject):
         return self._default_sample_banks.get(instrument)
 
     def set_default_sample_bank(self, instrument: int, sample_bank: str | None) -> None:
-        """Set lane default bank (None => fallback to index-based routing)."""
+        """Set lane default bank.
+
+        - ``sample_bank`` set: use that explicit bank.
+        - ``sample_bank`` is None: restore Auto bank for this lane.
+        """
         if sample_bank and sample_bank in self._samples_by_bank:
             self._default_sample_banks[instrument] = sample_bank
         else:
