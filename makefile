@@ -116,7 +116,7 @@ install-python:
 ## clean: Remove all .venv directories and Python caches
 clean:
 	@echo "Cleaning $(PROJECT_NAME)..."
-	rm -rf server/.venv Composition_App/.venv hand-gesture-app/.venv
+	rm -rf server/.venv Composition_App/.venv hand-gesture-app/.venv video-streaming/.venv
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@echo "Clean complete."
 
