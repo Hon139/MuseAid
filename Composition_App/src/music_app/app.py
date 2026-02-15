@@ -87,8 +87,8 @@ class MainWindow(QMainWindow):
         self._title_label = QLabel(
             f"  {self._sequence.name}  —  Key: {key}  —  {ts}  —  {self._sequence.bpm} BPM"
         )
-        self._load_json_button = QPushButton("Upload")
-        self._save_json_button = QPushButton("Download")
+        self._load_json_button = QPushButton("Download")
+        self._save_json_button = QPushButton("Upload")
         self._upload_button = QPushButton("Load JSON")
         self._download_button = QPushButton("Save JSON")
         self._load_json_button.setFixedHeight(28)
