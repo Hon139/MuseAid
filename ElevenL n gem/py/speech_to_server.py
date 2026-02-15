@@ -34,6 +34,17 @@ import requests
 
 SERVER_URL = os.environ.get("MUSEAID_SERVER_URL", "http://localhost:8000")
 
+def prompt_gem(context:str) -> str: 
+    """Prompt Gemini with the given context and return the response text."""
+    from google import genai
+    load_dotenv()
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY")) 
+    response = client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=context,
+    )
+    return response.text
+
 
 def transcribe_file(file_path: str) -> str:
     """Transcribe a local audio file using ElevenLabs STT."""
