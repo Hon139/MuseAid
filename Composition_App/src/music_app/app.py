@@ -119,16 +119,28 @@ class MainWindow(QMainWindow):
         # Per-lane sample bank selectors (left side)
         self._bank_combo_boxes: dict[int, QComboBox] = {}
         self._left_panel = QWidget()
-        self._left_panel.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Maximum)
-        left_layout = QVBoxLayout(self._left_panel)
-        left_layout.setContentsMargins(4, 4, 4, 4)
-        left_layout.setSpacing(4)
-
+        self._left_panel.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        self._left_panel.setMinimumWidth(128)
+        self._left_panel.setMaximumWidth(140)
+        
+        # Create instrument rows and position them to align with staff lines
         available_banks = self._audio.available_sample_banks()
+        self._instrument_rows: dict[int, QWidget] = {}
+        
+        # Calculate staff positions (matching StaffWidget constants)
+        STAFF_TOP_MARGIN = 30
+        LINE_SPACING = 13
+        STAFF_HEIGHT = 4 * LINE_SPACING  # 52
+        INSTRUMENT_GAP = 42
+        
+        # Top staff center: STAFF_TOP_MARGIN + STAFF_HEIGHT/2 = 30 + 26 = 56
+        # Bottom staff center: STAFF_TOP_MARGIN + STAFF_HEIGHT + INSTRUMENT_GAP + STAFF_HEIGHT/2 = 30 + 52 + 42 + 26 = 150
+        staff_positions = [56, 150]
+        
         for inst in (0, 1):
-            row = QWidget()
+            row = QWidget(self._left_panel)
             row_layout = QHBoxLayout(row)
-            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setContentsMargins(4, 0, 4, 0)
             row_layout.setSpacing(4)
 
             label = QLabel(f"I{inst + 1}")
@@ -160,7 +172,11 @@ class MainWindow(QMainWindow):
             self._bank_combo_boxes[inst] = combo
             row_layout.addWidget(label)
             row_layout.addWidget(combo)
-            left_layout.addWidget(row)
+            
+            # Position the row to align with its staff
+            row.move(0, staff_positions[inst] - 11)  # -11 to center the 22px high row
+            row.resize(128, 22)
+            self._instrument_rows[inst] = row
 
         # Scroll area for the staff (in case it gets tall with 2 lines)
         self._scroll = QScrollArea()
@@ -196,7 +212,7 @@ class MainWindow(QMainWindow):
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
 
-        content_layout.addWidget(self._left_panel, alignment=Qt.AlignmentFlag.AlignTop)
+        content_layout.addWidget(self._left_panel)
         content_layout.addWidget(self._scroll, stretch=1)
 
         layout.addWidget(self._top_bar)
