@@ -224,6 +224,8 @@ class MainWindow(QMainWindow):
         self._project_root = data_dir.parent
         self._shutdown_complete = False
         self._stt_worker: SttRecordAndSendWorker | None = None
+        self._suppress_server_sync = False
+        self._server_http_url = os.environ.get("MUSEAID_SERVER_URL", "http://localhost:8000")
 
         # ── Widgets ──────────────────────────────────────────────
         self._staff = StaffWidget()
@@ -426,9 +428,7 @@ class MainWindow(QMainWindow):
         self._server_client = ServerClient(parent=self)
         self._server_client.command_received.connect(self._on_remote_command)
         self._server_client.sequence_received.connect(self._on_remote_sequence)
-        self._server_client.connected.connect(
-            lambda: self._status.showMessage("Connected to MuseAid server")
-        )
+        self._server_client.connected.connect(self._on_server_connected)
         self._server_client.finished.connect(
             lambda: self._request_global_shutdown("Server client closed — shutting down")
         )
@@ -594,6 +594,24 @@ class MainWindow(QMainWindow):
         if not self._applying_key_cycle:
             self._reset_key_cycle_memory()
         self._refresh_title()
+        self._sync_sequence_to_server(reason="local edit")
+
+    def _on_server_connected(self) -> None:
+        self._status.showMessage("Connected to MuseAid server")
+        self._sync_sequence_to_server(reason="startup")
+
+    def _sync_sequence_to_server(self, reason: str) -> None:
+        if self._suppress_server_sync:
+            return
+        try:
+            resp = requests.put(
+                f"{self._server_http_url.rstrip('/')}/sequence",
+                json={"sequence": self._sequence.to_dict()},
+                timeout=3,
+            )
+            resp.raise_for_status()
+        except Exception as exc:
+            self._status.showMessage(f"Server sequence sync failed ({reason}): {exc}")
 
     def _refresh_title(self) -> None:
         ts = f"{self._sequence.time_sig_num}/{self._sequence.time_sig_den}"
@@ -965,6 +983,7 @@ class MainWindow(QMainWindow):
             self._reset_key_cycle_memory()
             self._refresh_title()
             self._status.showMessage(f"Loaded JSON: {Path(file_path).name}")
+            self._sync_sequence_to_server(reason="json upload")
         except Exception as exc:  # pragma: no cover - GUI feedback path
             self._status.showMessage(f"JSON load failed: {exc}")
 
@@ -1197,12 +1216,16 @@ class MainWindow(QMainWindow):
 
     def _on_remote_command(self, command: str) -> None:
         """Handle a command received from the MuseAid server (via gestures)."""
-        if command == "toggle_playback":
-            self._toggle_playback()
-        elif command == "switch_edit_staff":
-            self._switch_edit_staff()
-        else:
-            self._editor.execute(command)
+        self._suppress_server_sync = True
+        try:
+            if command == "toggle_playback":
+                self._toggle_playback()
+            elif command == "switch_edit_staff":
+                self._switch_edit_staff()
+            else:
+                self._editor.execute(command)
+        finally:
+            self._suppress_server_sync = False
 
     def _on_remote_sequence(self, sequence_json: str) -> None:
         """Handle a full sequence update from the server (via Gemini/speech)."""
@@ -1217,21 +1240,25 @@ class MainWindow(QMainWindow):
         if not new_seq.notes:
             return
 
-        self._sequence = new_seq
-        self._editor.sequence = self._sequence
-        self._edit_cursors = [0, 0]
-        self._active_edit_cursor_slot = 0
-        self._active_cursor_focus = 0
-        self._playback_cursor_index = 0
-        self._playback_start_index = 0
-        self._editor.cursor = 0
-        self._staff.set_sequence(self._sequence)
-        self._staff.set_playback_cursor(0 if self._sequence.notes else -1)
-        self._reset_key_cycle_memory()
-        self._refresh_title()
-        self._status.showMessage(
-            f"Sequence updated from server — {len(new_seq.notes)} notes"
-        )
+        self._suppress_server_sync = True
+        try:
+            self._sequence = new_seq
+            self._editor.sequence = self._sequence
+            self._edit_cursors = [0, 0]
+            self._active_edit_cursor_slot = 0
+            self._active_cursor_focus = 0
+            self._playback_cursor_index = 0
+            self._playback_start_index = 0
+            self._editor.cursor = 0
+            self._staff.set_sequence(self._sequence)
+            self._staff.set_playback_cursor(0 if self._sequence.notes else -1)
+            self._reset_key_cycle_memory()
+            self._refresh_title()
+            self._status.showMessage(
+                f"Sequence updated from server — {len(new_seq.notes)} notes"
+            )
+        finally:
+            self._suppress_server_sync = False
 
     def _shutdown(self) -> None:
         """Release background resources exactly once."""
