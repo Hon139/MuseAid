@@ -88,7 +88,7 @@ build:
 	@echo "Building $(PROJECT_NAME) — syncing virtual environments..."
 	cd server          && $(UV_SYNC)
 	cd Composition_App && $(UV_SYNC)
-	cd hand-gesture-app && $(UV_SYNC)
+# 	cd hand-gesture-app && $(UV_SYNC)
 	@echo "Build complete."
 
 ## install-python: optional helper to install Python 3.13 on Debian/Ubuntu (requires sudo)
