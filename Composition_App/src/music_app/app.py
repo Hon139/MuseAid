@@ -613,12 +613,22 @@ class MainWindow(QMainWindow):
         if self._suppress_server_sync:
             return True
         try:
+            seq_payload = json.loads(self._sequence.to_json())
+            for note in seq_payload.get("notes", []):
+                if isinstance(note, dict):
+                    note.pop("sample_bank", None)
+
             resp = requests.put(
                 f"{self._server_http_url.rstrip('/')}/sequence",
-                json={"sequence": self._sequence.to_dict()},
+                json={"sequence": seq_payload},
                 timeout=3,
             )
             resp.raise_for_status()
+
+            body = resp.json() if resp.content else {}
+            if isinstance(body, dict) and body.get("status") == "error":
+                raise RuntimeError(body.get("reason", "server rejected sequence payload"))
+
             logger.info(
                 "Synced sequence to server (%s): note_count=%d",
                 reason,
