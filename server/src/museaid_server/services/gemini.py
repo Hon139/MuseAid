@@ -37,7 +37,12 @@ instrument (0 or 1).
 """
 
 
-async def edit_sequence(current_sequence_json: str, instruction: str) -> str:
+async def edit_sequence(
+    current_sequence_json: str,
+    instruction: str,
+    selection_start_index: int | None = None,
+    selection_end_index: int | None = None,
+) -> str:
     """Call Gemini to edit a sequence based on a natural-language instruction.
 
     Parameters
@@ -58,9 +63,20 @@ async def edit_sequence(current_sequence_json: str, instruction: str) -> str:
     if not api_key:
         raise RuntimeError("Missing GEMINI_API_KEY/GOOGLE_API_KEY in environment")
 
+    range_rule = ""
+    if selection_start_index is not None and selection_end_index is not None:
+        range_rule = (
+            "Selection constraints:\n"
+            f"- Editable note indices are inclusive range [{selection_start_index}..{selection_end_index}].\n"
+            "- You MUST NOT modify notes outside that range.\n"
+            "- You MUST preserve note count and ordering outside that range exactly.\n"
+            "- If instruction requests outside-range changes, ignore that part and still obey this constraint.\n\n"
+        )
+
     prompt = (
         f"Current sequence JSON:\n{current_sequence_json}\n\n"
         f"User instruction:\n{instruction}\n\n"
+        f"{range_rule}"
         "Return only the updated sequence JSON."
     )
 

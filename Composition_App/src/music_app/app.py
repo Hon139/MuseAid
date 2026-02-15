@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from io import BytesIO
 from pathlib import Path
@@ -35,12 +36,20 @@ class SttRecordAndSendWorker(QThread):
     server_response = pyqtSignal(str)
     failed = pyqtSignal(str)
 
-    def __init__(self, server_url: str | None = None, parent=None) -> None:
+    def __init__(
+        self,
+        server_url: str | None = None,
+        selection_start_index: int | None = None,
+        selection_end_index: int | None = None,
+        parent=None,
+    ) -> None:
         super().__init__(parent)
         self._url = server_url or "http://localhost:8000"
         self._recording = True
         self._chunks: list[np.ndarray] = []
         self._sample_rate = 16_000
+        self._selection_start_index = selection_start_index
+        self._selection_end_index = selection_end_index
 
     def stop_recording(self) -> None:
         """Signal the worker loop to stop recording and continue processing."""
@@ -143,9 +152,14 @@ class SttRecordAndSendWorker(QThread):
             self.transcribed.emit(text)
 
             self._emit_status("STT: sending transcription to server...")
+            payload: dict[str, object] = {"text": text}
+            if self._selection_start_index is not None and self._selection_end_index is not None:
+                payload["selection_start_index"] = self._selection_start_index
+                payload["selection_end_index"] = self._selection_end_index
+
             resp = requests.post(
                 f"{self._url.rstrip('/')}/speech",
-                json={"text": text},
+                json=payload,
                 timeout=45,
             )
             resp.raise_for_status()
@@ -986,8 +1000,16 @@ class MainWindow(QMainWindow):
             self._stt_worker.stop_recording()
             return
 
+        selection_start = min(self._edit_cursors[0], self._edit_cursors[1])
+        selection_end = max(self._edit_cursors[0], self._edit_cursors[1])
+
         server_url = os.environ.get("MUSEAID_SERVER_URL", "http://localhost:8000")
-        worker = SttRecordAndSendWorker(server_url=server_url, parent=self)
+        worker = SttRecordAndSendWorker(
+            server_url=server_url,
+            selection_start_index=selection_start,
+            selection_end_index=selection_end,
+            parent=self,
+        )
         worker.status.connect(self._on_stt_status)
         worker.transcribed.connect(self._on_stt_transcribed)
         worker.server_response.connect(self._on_stt_server_response)
@@ -997,7 +1019,9 @@ class MainWindow(QMainWindow):
         self._stt_worker = worker
         self._stt_button.setText("Stop STT")
         self._stt_button.setEnabled(True)
-        self._status.showMessage("STT: recording... click STT again to stop")
+        self._status.showMessage(
+            f"STT: recording for selected note range [{selection_start}..{selection_end}]... click STT again to stop"
+        )
         worker.start()
 
     def _on_stt_status(self, message: str) -> None:
@@ -1008,7 +1032,25 @@ class MainWindow(QMainWindow):
         self._status.showMessage(f"STT transcription: {preview}")
 
     def _on_stt_server_response(self, server_payload: str) -> None:
-        self._status.showMessage(f"STT server response: {server_payload[:120]}")
+        try:
+            payload = json.loads(server_payload)
+        except Exception:
+            self._status.showMessage(f"STT server response: {server_payload[:120]}")
+            return
+
+        status = payload.get("status", "unknown")
+        if status == "ok":
+            if "selection_start_index" in payload and "selection_end_index" in payload:
+                self._status.showMessage(
+                    "STT applied to selected range "
+                    f"[{payload.get('selection_start_index')}..{payload.get('selection_end_index')}]"
+                )
+            else:
+                self._status.showMessage("STT applied to full sequence")
+            return
+
+        reason = payload.get("reason", "unknown error")
+        self._status.showMessage(f"STT request rejected: {reason}")
 
     def _on_stt_failed(self, error: str) -> None:
         self._status.showMessage("STT failed. Check ELEVENLABS_API_KEY, microphone access, and server reachability.")
