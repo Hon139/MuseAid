@@ -9,7 +9,7 @@ DIST_DIR = dist
 
 # Phony targets
 .PHONY: help all build clean install test run dev lint format setup \
-	sync server composition-app gesture-app run-all stop install-python
+	sync server composition-app gesture-app run-all stop install-python build-gem run-gem
 
 ## all: Build the entire project
 all: clean build
@@ -100,3 +100,20 @@ clean:
 	rm -rf server/.venv Composition_App/.venv hand-gesture-app/.venv
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@echo "Clean complete."
+
+## build-gem: Create/refresh virtual environment for the ElevenL n gem component
+build-gem:
+	@echo "Building ElevenL n gem venv..."
+	@if [ ! -d "ElevenL n gem/venv" ]; then \
+		echo "Creating venv in 'ElevenL n gem'..."; \
+		cd "ElevenL n gem" && python3 -m venv venv; \
+	fi
+	@echo "Installing google-genai into ElevenL n gem venv..."
+	@cd "ElevenL n gem" && ./venv/bin/pip install --upgrade pip
+	@cd "ElevenL n gem" && ./venv/bin/pip install -q -U google-genai
+	@echo "✅ ElevenL n gem venv ready."
+
+## run-gem: Run `py/gem.py` in the ElevenL n gem component (requires GEMINI_API_KEY set)
+run-gem: build-gem
+	@echo "Running gem.py (ElevenL n gem)..."
+	@cd "ElevenL n gem" && GEMINI_API_KEY=$$GEMINI_API_KEY ./venv/bin/python py/gem.py
