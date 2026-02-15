@@ -244,7 +244,10 @@ class MainWindow(QMainWindow):
             "Pinky only=DELETE_NOTE, Index+Pinky=TOGGLE_INSTRUMENT, "
             "Index+Middle+Ring=SPLIT_NOTE, Thumb+Pinky=MERGE_NOTE, Fist=MAKE_REST"
         )
-        self._gesture_guide_label.setWordWrap(False)
+        self._gesture_guide_label.setWordWrap(True)
+        self._gesture_guide_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self._gesture_guide_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self._gesture_guide_label.setMinimumHeight(40)
 
         layout.addWidget(self._top_bar)
         layout.addWidget(self._content_row, stretch=1)
