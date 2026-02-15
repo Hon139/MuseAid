@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -229,6 +230,7 @@ class MainWindow(QMainWindow):
         self._stt_worker: SttRecordAndSendWorker | None = None
         self._suppress_server_sync = False
         self._server_http_url = os.environ.get("MUSEAID_SERVER_URL", "http://localhost:8000")
+        self._debug_local_edit_id = 0
 
         # ── Widgets ──────────────────────────────────────────────
         self._staff = StaffWidget()
@@ -496,11 +498,21 @@ class MainWindow(QMainWindow):
             event.accept()
             return
         elif key == Qt.Key.Key_Up:
+            logger.info(
+                "Local key command: pitch_up | %s | seq_fp=%s",
+                self._debug_cursor_state(),
+                self._sequence_fingerprint(),
+            )
             self._editor.execute("pitch_up")
             self._preview_current_note()
             event.accept()
             return
         elif key == Qt.Key.Key_Down:
+            logger.info(
+                "Local key command: pitch_down | %s | seq_fp=%s",
+                self._debug_cursor_state(),
+                self._sequence_fingerprint(),
+            )
             self._editor.execute("pitch_down")
             self._preview_current_note()
             event.accept()
@@ -589,6 +601,15 @@ class MainWindow(QMainWindow):
         )
 
     def _on_sequence_changed(self) -> None:
+        self._debug_local_edit_id += 1
+        edit_id = self._debug_local_edit_id
+        logger.info(
+            "Local sequence_changed #%d (before sync) | %s | seq_fp=%s",
+            edit_id,
+            self._debug_cursor_state(),
+            self._sequence_fingerprint(),
+        )
+
         self._playback_cursor_index = self._clamp_cursor(self._playback_cursor_index)
         self._playback_start_index = self._clamp_cursor(self._playback_start_index)
         self._sync_staff_edit_cursors()
@@ -598,7 +619,14 @@ class MainWindow(QMainWindow):
         if not self._applying_key_cycle:
             self._reset_key_cycle_memory()
         self._refresh_title()
-        self._sync_sequence_to_server(reason="local edit")
+        sync_ok = self._sync_sequence_to_server(reason=f"local edit #{edit_id}")
+        logger.info(
+            "Local sequence_changed #%d (after sync: ok=%s) | %s | seq_fp=%s",
+            edit_id,
+            sync_ok,
+            self._debug_cursor_state(),
+            self._sequence_fingerprint(),
+        )
 
     def _on_server_connected(self) -> None:
         logger.info("WebSocket connected to MuseAid server")
@@ -611,6 +639,11 @@ class MainWindow(QMainWindow):
 
     def _sync_sequence_to_server(self, reason: str) -> bool:
         if self._suppress_server_sync:
+            logger.info(
+                "Skipping server sync (%s) because suppress flag is active | %s",
+                reason,
+                self._debug_cursor_state(),
+            )
             return True
         try:
             seq_payload = json.loads(self._sequence.to_json())
@@ -630,13 +663,20 @@ class MainWindow(QMainWindow):
                 raise RuntimeError(body.get("reason", "server rejected sequence payload"))
 
             logger.info(
-                "Synced sequence to server (%s): note_count=%d",
+                "Synced sequence to server (%s): note_count=%d, seq_fp=%s",
                 reason,
                 len(self._sequence.notes),
+                self._sequence_fingerprint(),
             )
             return True
         except Exception as exc:
-            logger.warning("Server sequence sync failed (%s): %s", reason, exc)
+            logger.warning(
+                "Server sequence sync failed (%s): %s | %s | seq_fp=%s",
+                reason,
+                exc,
+                self._debug_cursor_state(),
+                self._sequence_fingerprint(),
+            )
             self._status.showMessage(f"Server sequence sync failed ({reason}): {exc}")
             return False
 
@@ -644,6 +684,40 @@ class MainWindow(QMainWindow):
         ts = f"{self._sequence.time_sig_num}/{self._sequence.time_sig_den}"
         self._title_label.setText(
             f"  {self._sequence.name}  —  Key: {self._sequence.key}  —  {ts}  —  {self._sequence.bpm} BPM"
+        )
+
+    def _sequence_fingerprint(
+        self,
+        seq: Sequence | None = None,
+        *,
+        normalize_for_server: bool = False,
+    ) -> str:
+        """Return a compact content hash for quick before/after comparisons.
+
+        When ``normalize_for_server`` is enabled, fields the server drops
+        (currently ``sample_bank``) are removed before hashing so client-side
+        and echoed server payloads can be compared accurately.
+        """
+        target = self._sequence if seq is None else seq
+        try:
+            payload_obj = json.loads(target.to_json())
+            if normalize_for_server:
+                for note in payload_obj.get("notes", []):
+                    if isinstance(note, dict):
+                        note.pop("sample_bank", None)
+            payload = json.dumps(payload_obj, sort_keys=True, separators=(",", ":"))
+        except Exception:
+            return "unavailable"
+        return hashlib.sha1(payload.encode("utf-8")).hexdigest()[:12]
+
+    def _debug_cursor_state(self) -> str:
+        """Compact cursor snapshot for debugging logs."""
+        return (
+            f"focus={self._active_cursor_focus} "
+            f"active_slot={self._active_edit_cursor_slot} "
+            f"editor={self._editor.cursor} "
+            f"edit={self._edit_cursors} "
+            f"playback={self._playback_cursor_index}"
         )
 
     def _adjust_tempo(self, delta_bpm: int) -> None:
@@ -804,6 +878,7 @@ class MainWindow(QMainWindow):
             self._edit_cursors[self._active_edit_cursor_slot] = self._clamp_cursor(index)
             self._last_modified_cursor_kind = f"edit{self._active_edit_cursor_slot}"
             self._autoscroll_to_note(self._edit_cursors[self._active_edit_cursor_slot])
+        logger.info("Editor cursor changed -> %d | %s", index, self._debug_cursor_state())
         self._sync_staff_edit_cursors()
 
     def _toggle_active_edit_cursor(self) -> None:
@@ -1293,6 +1368,32 @@ class MainWindow(QMainWindow):
             logger.exception("Failed to parse remote sequence payload")
             return
 
+        local_fp = self._sequence_fingerprint()
+        remote_fp = self._sequence_fingerprint(new_seq)
+        local_server_fp = self._sequence_fingerprint(normalize_for_server=True)
+        remote_server_fp = self._sequence_fingerprint(new_seq, normalize_for_server=True)
+        logger.info(
+            "Remote sequence_update received: notes=%d, local_fp=%s, remote_fp=%s, "
+            "local_server_fp=%s, remote_server_fp=%s, same_server_payload=%s | %s",
+            len(new_seq.notes),
+            local_fp,
+            remote_fp,
+            local_server_fp,
+            remote_server_fp,
+            local_server_fp == remote_server_fp,
+            self._debug_cursor_state(),
+        )
+
+        # Ignore local-echo no-op updates. This is the critical fix for edit cursor
+        # jumps after pitch edits: we already applied the local mutation, so
+        # re-applying identical server content must not reset cursor state.
+        if local_server_fp == remote_server_fp:
+            logger.info(
+                "Ignoring identical remote sequence echo to preserve cursor state | %s",
+                self._debug_cursor_state(),
+            )
+            return
+
         # Ignore empty sequences from the server (e.g. the default "Untitled"
         # that the server sends on first connect).  We don't want to blow away
         # the locally-loaded composition with nothing.
@@ -1318,6 +1419,11 @@ class MainWindow(QMainWindow):
             self._refresh_title()
             self._status.showMessage(
                 f"Sequence updated from server — {len(new_seq.notes)} notes"
+            )
+            logger.info(
+                "Remote sequence applied with cursor reset | %s | seq_fp=%s",
+                self._debug_cursor_state(),
+                self._sequence_fingerprint(),
             )
         finally:
             self._suppress_server_sync = False
