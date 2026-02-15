@@ -1,0 +1,71 @@
+You will be helping a user make a sheet music json file of the prompt: {prompt}
+
+This sheet music generated will be approximately 8 bars unless the length is otherwise specified above.
+
+The JSON file has two sections:
+Header fields:
+name — title of the piece (string value)
+bpm — tempo in beats per minute (integer)
+time_sig_num and time_sig_den — time signature numerator/denominator (integers)
+key — musical key (example: "C") (string)
+
+Notes array (named "notes") — each entry is a note event with:
+pitch — note name + octave, (All available notes: Octave 4:
+C4, C#4, D4, D#4, E4, F4, F#4, G4, G#4, A4, A#4, B4, C5, C#5, D5, D#5, E5, F5, F#5, G5, G#5, A5, A#5, B5, REST) (string)
+duration — length in beats (1.0 = quarter note at the given time signature) (float)
+beat — absolute beat position where the note starts (0-based). Beat 0 = start of measure 1, beat 4 = start of measure 2 in 4/4 time (float)
+note_type — human-readable duration label (no dotted): "whole" (4 beats), "half" (2), "quarter" (1), "eighth" (0.5), "sixteenth" (0.25) (string)
+instrument — which instrument plays this note: 0 = first instrument, 1 = second instrument (there are up to 2 instruments total) (integer)
+
+Here is an example:
+{
+  "name": "{NAME_HERE}",
+  "bpm": INT_VALUE_HERE,
+  "time_sig_num": INT_VALUE_HERE,
+  "time_sig_den": INT_VALUE_HERE,
+  "key": "CHAR_VALUE_HERE",
+  "notes": [
+    {"pitch": "C4", "duration": 0.25, "beat": 0.0, "note_type": "sixteenth", "instrument": 0},
+    {"pitch": "D4", "duration": 0.25, "beat": 0.25, "note_type": "sixteenth", "instrument": 0},
+    {"pitch": "E4", "duration": 0.5, "beat": 0.5, "note_type": "eighth", "instrument": 0},
+    {"pitch": "G4", "duration": 1.0, "beat": 1.0, "note_type": "quarter", "instrument": 0},
+    {"pitch": "REST", "duration": 0.5, "beat": 2.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "C5", "duration": 0.25, "beat": 2.5, "note_type": "sixteenth", "instrument": 0},
+    {"pitch": "B4", "duration": 0.25, "beat": 2.75, "note_type": "sixteenth", "instrument": 0},
+    {"pitch": "A4", "duration": 1.0, "beat": 3.0, "note_type": "quarter", "instrument": 0},
+
+    {"pitch": "D4", "duration": 2.0, "beat": 4.0, "note_type": "half", "instrument": 0},
+    {"pitch": "F4", "duration": 0.5, "beat": 6.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "G4", "duration": 0.25, "beat": 6.5, "note_type": "sixteenth", "instrument": 0},
+    {"pitch": "E4", "duration": 0.25, "beat": 6.75, "note_type": "sixteenth", "instrument": 0},
+    {"pitch": "E5", "duration": 2.0, "beat": 7.0, "note_type": "quarter", "instrument": 0},
+
+    {"pitch": "G4", "duration": 1.0, "beat": 9.0, "note_type": "quarter", "instrument": 0},
+    {"pitch": "REST", "duration": 1.0, "beat": 10.0, "note_type": "quarter", "instrument": 0},
+    {"pitch": "A4", "duration": 0.5, "beat": 11.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "B4", "duration": 0.25, "beat": 11.5, "note_type": "sixteenth", "instrument": 0},
+    {"pitch": "C5", "duration": 0.25, "beat": 11.75, "note_type": "sixteenth", "instrument": 0},
+
+    {"pitch": "C5", "duration": 4.0, "beat": 12.0, "note_type": "whole", "instrument": 0},
+
+    {"pitch": "E5", "duration": 1.0, "beat": 16.0, "note_type": "quarter", "instrument": 0},
+    {"pitch": "D5", "duration": 1.0, "beat": 17.0, "note_type": "quarter", "instrument": 0},
+    {"pitch": "C5", "duration": 2.0, "beat": 18.0, "note_type": "half", "instrument": 0},
+
+    {"pitch": "C5", "duration": 4.0, "beat": 20.0, "note_type": "whole", "instrument": 0},
+
+    {"pitch": "G4", "duration": 2.0, "beat": 0.0, "note_type": "half", "instrument": 1},
+    {"pitch": "C4", "duration": 2.0, "beat": 2.0, "note_type": "half", "instrument": 1},
+    {"pitch": "A4", "duration": 2.0, "beat": 4.0, "note_type": "half", "instrument": 1},
+    {"pitch": "D4", "duration": 0.5, "beat": 6.0, "note_type": "eighth", "instrument": 1},
+    {"pitch": "REST", "duration": 0.25, "beat": 6.5, "note_type": "sixteenth", "instrument": 1},
+    {"pitch": "C4", "duration": 4.0, "beat": 8.0, "note_type": "whole", "instrument": 1},
+    {"pitch": "G4", "duration": 2.0, "beat": 12.0, "note_type": "half", "instrument": 1},
+    {"pitch": "REST", "duration": 2.0, "beat": 14.0, "note_type": "half", "instrument": 1},
+    {"pitch": "C4", "duration": 4.0, "beat": 16.0, "note_type": "whole", "instrument": 1},
+    {"pitch": "G4", "duration": 2.0, "beat": 20.0, "note_type": "half", "instrument": 1},
+    {"pitch": "C4", "duration": 2.0, "beat": 22.0, "note_type": "half", "instrument": 1},
+
+    {"pitch": "E5", "duration": 4.0, "beat": 24.0, "note_type": "whole", "instrument": 1}
+  ]
+}
