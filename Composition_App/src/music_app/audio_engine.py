@@ -20,8 +20,8 @@ from .models import Note, Sequence
 #   data/instrument_1/c4.wav
 #   data/instrument_2/c4.wav
 INSTRUMENT_DEFS = [
-    {"name": "Guitar Acoustic", "folder": "Guitar-Acoustic", "legacy_prefix": "instrument"},
-    {"name": "Guitar Nylon", "folder": "Guitar", "legacy_prefix": "instrument2"},
+    {"name": "Guitar-Acoustic", "folder": "Guitar-Acoustic", "legacy_prefix": "instrument"},
+    {"name": "Guitar-Nylon", "folder": "Guitar", "legacy_prefix": "instrument2"},
 ]
 INSTRUMENT_NAMES = [d["name"] for d in INSTRUMENT_DEFS]
 NOTE_BLEND_OVERLAP_RATIO = 0.30  # quarter @ 120 BPM => 500ms * 0.30 = 150ms

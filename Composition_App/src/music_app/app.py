@@ -154,19 +154,20 @@ class MainWindow(QMainWindow):
             for bank in available_banks:
                 combo.addItem(bank, bank)
 
-            # Default both lanes to piano when available (case-insensitive).
-            preferred_default = "piano"
+            # Default instrument 0 to Guitar-Acoustic, instrument 1 to Guitar-Nylon.
+            preferred_defaults = {0: "Guitar-Acoustic", 1: "Guitar-Nylon"}
+            preferred_default = preferred_defaults.get(inst, "Piano")
             idx = combo.findData(preferred_default)
             if idx < 0:
                 for i in range(combo.count()):
                     data = combo.itemData(i)
-                    if isinstance(data, str) and data.lower() == preferred_default:
+                    if isinstance(data, str) and data.lower() == preferred_default.lower():
                         idx = i
                         break
             if idx < 0:
                 for i in range(combo.count()):
                     data = combo.itemData(i)
-                    if isinstance(data, str) and preferred_default in data.lower():
+                    if isinstance(data, str) and preferred_default.lower() in data.lower():
                         idx = i
                         break
             if idx < 0 and combo.count() > 0:
