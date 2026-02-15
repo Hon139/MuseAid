@@ -13,6 +13,7 @@ open http://<host>:8080/ in your browser to see the live overlay.
 from __future__ import annotations
 
 import io
+import sys
 import threading
 from http import server
 from typing import Optional
@@ -38,10 +39,25 @@ class _FrameBuffer:
 class _Handler(server.BaseHTTPRequestHandler):
     buffer: _FrameBuffer = None  # type: ignore
 
+    def do_HEAD(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler uses camelCase
+        if self.path != "/":
+            self.send_error(404)
+            return
+
+        self.send_response(200)
+        self.send_header("Age", "0")
+        self.send_header("Cache-Control", "no-cache, private")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+        self.end_headers()
+
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler uses camelCase
         if self.path != "/":
             self.send_error(404)
             return
+
+        client = f"{self.client_address[0]}:{self.client_address[1]}"
+        print(f"MJPEG client connected: {client}", file=sys.stderr)
 
         self.send_response(200)
         self.send_header("Age", "0")
@@ -67,9 +83,15 @@ class _Handler(server.BaseHTTPRequestHandler):
                 threading.Event().wait(0.03)
         except BrokenPipeError:
             # Client disconnected
+            print(f"MJPEG client disconnected (broken pipe): {client}", file=sys.stderr)
             return
         except Exception:
+            print(f"MJPEG client disconnected (error): {client}", file=sys.stderr)
             return
+
+
+class _ThreadingHTTPServer(server.ThreadingHTTPServer):
+    daemon_threads = True
 
 
 class MJPEGServer:
@@ -82,7 +104,7 @@ class MJPEGServer:
     def start(self) -> None:
         handler = _Handler
         handler.buffer = self._buffer
-        self._server = server.HTTPServer(("0.0.0.0", self._port), handler)
+        self._server = _ThreadingHTTPServer(("0.0.0.0", self._port), handler)
 
         def _serve() -> None:
             try:
