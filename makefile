@@ -9,7 +9,7 @@ DIST_DIR = dist
 
 # Phony targets
 .PHONY: help all build clean install test run dev lint format setup \
-	sync server composition-app gesture-app video-streaming video-streaming-system-deps run-all stop install-python build-gem run-gem
+	sync server composition-app gesture-app video-streaming video-streaming-system-deps stt-system-deps run-all stop install-python build-gem run-gem
 
 ## all: Build the entire project
 all: clean build
@@ -50,6 +50,16 @@ video-streaming-system-deps:
 		sudo apt-get update && sudo apt-get install -y libcap-dev python3-libcamera python3-picamera2; \
 	else \
 		echo "Skipping auto-install: non Debian/Ubuntu distro. Install libcap development headers manually."; \
+	fi
+
+## stt-system-deps: Install OS packages needed by microphone STT (PortAudio/PyAudio)
+stt-system-deps:
+	@if [ -f /etc/os-release ]; then . /etc/os-release; fi; \
+	if echo "$${ID_LIKE:-} $${ID:-}" | grep -Eiq "debian|ubuntu"; then \
+		echo "Installing STT system deps (portaudio19-dev, python3-pyaudio)..."; \
+		sudo apt-get update && sudo apt-get install -y portaudio19-dev python3-pyaudio; \
+	else \
+		echo "Skipping auto-install: non Debian/Ubuntu distro. Install PortAudio headers and PyAudio manually."; \
 	fi
 
 ## run-all: Launch server, composition app, and gesture app concurrently
@@ -99,7 +109,7 @@ setup:
 # ---------- Build / Clean ----------
 
 ## build: Create / refresh virtual environments for all sub-projects
-build: video-streaming-system-deps
+build: video-streaming-system-deps stt-system-deps
 	@echo "Building $(PROJECT_NAME) — syncing virtual environments..."
 	cd server          && $(UV_SYNC)
 	cd Composition_App && $(UV_SYNC)

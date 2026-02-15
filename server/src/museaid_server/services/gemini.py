@@ -1,23 +1,23 @@
-"""Placeholder Gemini integration for AI-powered composition editing.
-
-This module defines the interface that a real Gemini integration would
-implement.  For now it returns a stub response so the rest of the pipeline
-can be tested end-to-end without an API key.
-
-To plug in the real Google Generative AI SDK later:
-
-    1. ``pip install google-generativeai``
-    2. Set the ``GOOGLE_API_KEY`` environment variable.
-    3. Replace the body of ``edit_sequence`` with a call to
-       ``genai.GenerativeModel("gemini-pro").generate_content_async(prompt)``.
-"""
+"""Gemini integration for AI-powered composition editing."""
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import os
+import re
+from pathlib import Path
+
+from dotenv import load_dotenv
+from google import genai
 
 logger = logging.getLogger("museaid.gemini")
+
+# Load workspace-level .env: `<repo>/.env`
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[4] / ".env")
+
+MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 # ── System prompt sent to Gemini alongside the user instruction ──────
 
@@ -54,22 +54,51 @@ async def edit_sequence(current_sequence_json: str, instruction: str) -> str:
         connected this will be the model's output; for now it echoes the
         input unchanged with a log message.
     """
-    logger.info(
-        "Gemini placeholder called — instruction: %r (sequence unchanged)",
-        instruction,
+    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise RuntimeError("Missing GEMINI_API_KEY/GOOGLE_API_KEY in environment")
+
+    prompt = (
+        f"Current sequence JSON:\n{current_sequence_json}\n\n"
+        f"User instruction:\n{instruction}\n\n"
+        "Return only the updated sequence JSON."
     )
 
-    # ── Placeholder: echo input unchanged ────────────────────────
-    # Replace this block with a real Gemini API call:
-    #
-    #   import google.generativeai as genai
-    #   genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
-    #   model = genai.GenerativeModel("gemini-pro",
-    #       system_instruction=SYSTEM_PROMPT)
-    #   response = await model.generate_content_async(
-    #       f"Current sequence:\n{current_sequence_json}\n\n"
-    #       f"Instruction: {instruction}"
-    #   )
-    #   return response.text
+    def _call_model() -> str:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=[
+                {"role": "user", "parts": [{"text": f"{SYSTEM_PROMPT}\n\n{prompt}"}]},
+            ],
+        )
+        text = (response.text or "").strip()
+        if not text:
+            raise RuntimeError("Gemini returned empty response")
+        return text
 
-    return current_sequence_json
+    raw_text = await asyncio.to_thread(_call_model)
+    updated_json = _extract_json_object(raw_text)
+
+    # Validate model output has expected schema before returning.
+    parsed = json.loads(updated_json)
+    required = {"name", "bpm", "time_sig_num", "time_sig_den", "key", "notes"}
+    missing = required - set(parsed.keys())
+    if missing:
+        raise ValueError(f"Gemini output missing keys: {sorted(missing)}")
+
+    return json.dumps(parsed)
+
+
+def _extract_json_object(text: str) -> str:
+    """Extract a JSON object from plain text or fenced markdown output."""
+    fenced = re.search(r"```(?:json)?\s*(\{[\s\S]*\})\s*```", text)
+    if fenced:
+        return fenced.group(1).strip()
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return text[start : end + 1].strip()
+
+    raise ValueError("Could not parse JSON object from Gemini response")
