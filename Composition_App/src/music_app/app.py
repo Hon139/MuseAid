@@ -226,6 +226,18 @@ class MainWindow(QMainWindow):
             self._adjust_tempo(-5)
             event.accept()
             return
+        elif key == Qt.Key.Key_U:
+            self._editor.execute("split_note")
+            event.accept()
+            return
+        elif key == Qt.Key.Key_I:
+            self._editor.execute("merge_note")
+            event.accept()
+            return
+        elif key == Qt.Key.Key_O:
+            self._editor.execute("make_rest")
+            event.accept()
+            return
         else:
             super().keyPressEvent(event)
 

@@ -60,6 +60,7 @@ class NoteType(str, Enum):
     HALF = "half"            # 2 beats
     QUARTER = "quarter"      # 1 beat
     EIGHTH = "eighth"        # 0.5 beats
+    SIXTEENTH = "sixteenth"  # 0.25 beats
 
     @property
     def beats(self) -> float:
@@ -69,6 +70,7 @@ class NoteType(str, Enum):
             NoteType.HALF: 2.0,
             NoteType.QUARTER: 1.0,
             NoteType.EIGHTH: 0.5,
+            NoteType.SIXTEENTH: 0.25,
         }[self]
 
 

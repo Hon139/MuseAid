@@ -5,9 +5,11 @@ A music production app with treble clef staff notation display, built with PyQt6
 ## Features
 
 - **Treble clef staff** — Renders notes on a standard 5-line musical staff with a treble clef
-- **Quarter note display** — Notes shown as filled noteheads with stems and proper staff positioning
-- **Playback** — Press **Space** to play the sequence; notes highlight blue as they play
-- **Example file** — Ships with a C major scale (C4→C5) pre-loaded
+- **Multiple note/rest durations** — whole, half, quarter, eighth, and sixteenth note rendering
+- **Playback cursor** — Vertical playback line with play/pause from cursor
+- **JSON workflow** — Load/save compositions from the `examples/` directory
+- **Dual edit cursors** — Toggle editing focus between two cursors plus playback cursor focus
+- **Example files** — Includes `c_major_scale.json` and `megalovania_inspired.json`
 - **Backend-ready** — `SequenceEditor` command interface for future external control (move_left, move_right, pitch_up, pitch_down, etc.)
 
 ## Quick Start
@@ -26,9 +28,24 @@ uv run music-app
 
 ## Controls
 
-| Key   | Action                    |
-|-------|---------------------------|
-| Space | Play / Stop the sequence  |
+| Key | Action |
+|---|---|
+| `Space` | Play / pause from playback cursor |
+| `Left` / `Right` | Move active cursor left/right |
+| `Up` / `Down` | Pitch up/down (also previews note sound) |
+| `W` / `S` | Increase / decrease tempo |
+| `Backspace` | Delete selected note |
+| `Tab` | Switch selected note to opposite instrument at same/nearest beat |
+| `T` | Cycle cursor focus: edit cursor 1 → edit cursor 2 → playback cursor |
+| `K` | Cycle key signature and transpose notes |
+
+### Supported note types
+
+- `whole` (4.0 beats)
+- `half` (2.0 beats)
+- `quarter` (1.0 beat)
+- `eighth` (0.5 beats)
+- `sixteenth` (0.25 beats)
 
 ## Project Structure
 

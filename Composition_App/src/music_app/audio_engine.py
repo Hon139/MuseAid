@@ -18,6 +18,18 @@ from .models import Note, Sequence
 # Instrument folder prefixes (must match generate_samples.py)
 INSTRUMENT_PREFIXES = ["instrument", "instrument2"]
 INSTRUMENT_NAMES = ["Sine (Instrument 1)", "Triangle (Instrument 2)"]
+NOTE_BLEND_OVERLAP_RATIO = 0.30  # quarter @ 120 BPM => 500ms * 0.30 = 150ms
+FLAT_TO_SHARP_EQUIV = {
+    "CB": "B",
+    "DB": "C#",
+    "EB": "D#",
+    "FB": "E",
+    "GB": "F#",
+    "AB": "G#",
+    "BB": "A#",
+    "E#": "F",
+    "B#": "C",
+}
 
 
 class AudioEngine(QObject):
@@ -99,14 +111,56 @@ class AudioEngine(QObject):
         """Play a single note sample on the selected instrument channel."""
         if pitch == "REST":
             return
-        inst_samples = self._samples.get(instrument, self._samples.get(0, {}))
-        sound = inst_samples.get(pitch)
+        # Always use instrument 1 sample bank for both staff instruments.
+        # This keeps 2-staff notation but avoids missing instrument2 samples.
+        inst_samples = self._samples.get(0, {})
+        sample_pitch = self._resolve_sample_pitch(pitch, inst_samples)
+        sound = inst_samples.get(sample_pitch) if sample_pitch else None
         if sound is not None:
             # Use mixer-managed channel selection so previous notes can ring out
             # for their full sample duration without being cut off by the next note.
             sound.play()
         else:
             print(f"Warning: No sample for {pitch} (instrument {instrument})")
+
+    @staticmethod
+    def _resolve_sample_pitch(pitch: str, inst_samples: dict[str, pygame.mixer.Sound]) -> str | None:
+        """Resolve requested pitch to an available sample key.
+
+        Supports:
+        - flats/enharmonic spellings -> sharps
+        - octave lift/drop into available sample range
+        """
+        if pitch in inst_samples:
+            return pitch
+        if len(pitch) < 2 or not pitch[-1].isdigit():
+            return None
+
+        octave = int(pitch[-1])
+        note_name = pitch[:-1].upper()
+        note_name = FLAT_TO_SHARP_EQUIV.get(note_name, note_name)
+
+        candidate = f"{note_name}{octave}"
+        if candidate in inst_samples:
+            return candidate
+
+        # Prefer nearest in-range octave (sample set is typically C4..B5).
+        if octave < 4:
+            candidate = f"{note_name}4"
+            if candidate in inst_samples:
+                return candidate
+        if octave > 5:
+            candidate = f"{note_name}5"
+            if candidate in inst_samples:
+                return candidate
+
+        # Final fallback: try both available octaves.
+        for octv in (4, 5):
+            candidate = f"{note_name}{octv}"
+            if candidate in inst_samples:
+                return candidate
+
+        return None
 
     def play_sequence(self, sequence: Sequence, start_index: int = 0) -> None:
         """Start playing a sequence, optionally from a specific note index."""
@@ -166,7 +220,9 @@ class AudioEngine(QObject):
         if self._event_index + 1 < len(self._events):
             next_beat = self._events[self._event_index + 1][0]
             delta_beats = max(0.0, next_beat - current_beat)
-            wait_ms = max(1, int((60.0 / seq.bpm) * delta_beats * 1000))
+            delta_ms = (60.0 / seq.bpm) * delta_beats * 1000
+            overlap_ms = int(delta_ms * NOTE_BLEND_OVERLAP_RATIO)
+            wait_ms = max(1, int(delta_ms) - overlap_ms)
             self._timer.start(wait_ms)
         else:
             # Last event: wait for longest note in group before finish

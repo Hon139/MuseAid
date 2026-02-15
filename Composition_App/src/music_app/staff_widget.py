@@ -412,13 +412,26 @@ class StaffWidget(QWidget):
             p.drawLine(int(cx - 4), int(y0), int(cx + 4), int(y0 + s))
             p.drawLine(int(cx + 4), int(y0 + s), int(cx - 4), int(y0 + 2 * s))
             p.drawLine(int(cx - 4), int(y0 + 2 * s), int(cx + 4), int(y0 + 3 * s))
-        else:  # eighth
+        elif nt == NoteType.EIGHTH:
             p.setPen(QPen(color, 2.2))
             y0 = mid_y - self.LINE_SPACING * 0.5
             p.setBrush(QBrush(color))
             p.drawEllipse(QPointF(cx + 3, y0), 3, 3)
             p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawLine(int(cx + 3), int(y0), int(cx - 5), int(y0 + self.LINE_SPACING * 1.5))
+        else:  # sixteenth
+            p.setPen(QPen(color, 2.1))
+            y0 = mid_y - self.LINE_SPACING * 0.55
+            p.setBrush(QBrush(color))
+            p.drawEllipse(QPointF(cx + 3, y0), 3, 3)
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawLine(int(cx + 3), int(y0), int(cx - 5), int(y0 + self.LINE_SPACING * 1.55))
+            p.drawLine(
+                int(cx + 1),
+                int(y0 + self.LINE_SPACING * 0.35),
+                int(cx - 7),
+                int(y0 + self.LINE_SPACING * 1.9),
+            )
 
         if is_active_cur or is_inactive_cur:
             p.setPen(Qt.PenStyle.NoPen)
@@ -493,7 +506,7 @@ class StaffWidget(QWidget):
                 p.drawLine(int(sx), int(cy), int(sx), int(cy + self.STEM_LENGTH))
 
         # flag
-        if nt == NoteType.EIGHTH:
+        if nt in (NoteType.EIGHTH, NoteType.SIXTEENTH):
             p.setPen(QPen(color, 2.0))
             if staff_pos < 0:
                 sx = cx + rx - 1
@@ -502,6 +515,11 @@ class StaffWidget(QWidget):
                 path.moveTo(sx, sy)
                 path.cubicTo(sx + 12, sy + 10, sx + 8, sy + 20, sx + 2, sy + 28)
                 p.drawPath(path)
+                if nt == NoteType.SIXTEENTH:
+                    path2 = QPainterPath()
+                    path2.moveTo(sx, sy + 8)
+                    path2.cubicTo(sx + 11, sy + 18, sx + 7, sy + 28, sx + 2, sy + 36)
+                    p.drawPath(path2)
             else:
                 sx = cx - rx + 1
                 sy = cy + self.STEM_LENGTH
@@ -509,6 +527,11 @@ class StaffWidget(QWidget):
                 path.moveTo(sx, sy)
                 path.cubicTo(sx - 12, sy - 10, sx - 8, sy - 20, sx - 2, sy - 28)
                 p.drawPath(path)
+                if nt == NoteType.SIXTEENTH:
+                    path2 = QPainterPath()
+                    path2.moveTo(sx, sy - 8)
+                    path2.cubicTo(sx - 11, sy - 18, sx - 7, sy - 28, sx - 2, sy - 36)
+                    p.drawPath(path2)
 
         # accidental
         if _is_sharp(note.pitch):

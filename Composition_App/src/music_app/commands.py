@@ -14,6 +14,21 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from .models import Note, Sequence, PITCH_ORDER
 
 
+def _note_type_for_duration(duration: float) -> str | None:
+    """Return a canonical note_type string for supported durations."""
+    mapping = {
+        4.0: "whole",
+        2.0: "half",
+        1.0: "quarter",
+        0.5: "eighth",
+        0.25: "sixteenth",
+    }
+    for beats, name in mapping.items():
+        if abs(duration - beats) < 1e-6:
+            return name
+    return None
+
+
 class SequenceEditor(QObject):
     """Wraps a Sequence and provides a cursor + command API.
 
@@ -69,6 +84,9 @@ class SequenceEditor(QObject):
             "delete_note": self.delete_note,
             "add_note": self.add_note,
             "toggle_instrument": self.toggle_instrument,
+            "split_note": self.split_note,
+            "merge_note": self.merge_note,
+            "make_rest": self.make_rest,
         }
         action = actions.get(command)
         if action is not None:
@@ -143,4 +161,62 @@ class SequenceEditor(QObject):
         if note is None:
             return
         note.instrument = 1 if note.instrument == 0 else 0
+        self.sequence_changed.emit()
+
+    def split_note(self) -> None:
+        """Split current note into two notes with half duration each."""
+        note = self.current_note
+        if note is None:
+            return
+        if note.duration <= 0.25:
+            return
+
+        half_duration = note.duration / 2.0
+        note.duration = half_duration
+        mapped_type = _note_type_for_duration(half_duration)
+        if mapped_type is not None:
+            note.note_type = mapped_type
+
+        # Keep same type for now; renderer uses duration for timing while note_type
+        # remains the visual hint currently edited manually.
+        new_note = Note(
+            pitch=note.pitch,
+            duration=half_duration,
+            beat=note.beat + half_duration,
+            note_type=note.note_type,
+            instrument=note.instrument,
+        )
+        self.sequence.notes.insert(self._cursor + 1, new_note)
+        self.sequence_changed.emit()
+        self.cursor_changed.emit(self._cursor)
+
+    def merge_note(self) -> None:
+        """Merge current note with the next note on same instrument if adjacent."""
+        if not self.sequence.notes or self._cursor >= len(self.sequence.notes) - 1:
+            return
+
+        cur = self.sequence.notes[self._cursor]
+        nxt = self.sequence.notes[self._cursor + 1]
+
+        if cur.instrument != nxt.instrument:
+            return
+
+        cur_end = cur.beat + cur.duration
+        if abs(cur_end - nxt.beat) > 1e-6:
+            return
+
+        cur.duration += nxt.duration
+        mapped_type = _note_type_for_duration(cur.duration)
+        if mapped_type is not None:
+            cur.note_type = mapped_type
+        self.sequence.notes.pop(self._cursor + 1)
+        self.sequence_changed.emit()
+        self.cursor_changed.emit(self._cursor)
+
+    def make_rest(self) -> None:
+        """Convert the selected note into a rest (preserve duration/beat/instrument)."""
+        note = self.current_note
+        if note is None:
+            return
+        note.pitch = "REST"
         self.sequence_changed.emit()
