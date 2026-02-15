@@ -77,6 +77,46 @@ The generated sine-wave samples are placeholders. To use your own instrument:
 2. Name them following the convention: `c4.mp3`, `d4.wav`, `c_sharp4.mp3`, etc.
 3. The audio engine auto-detects `.wav`, `.mp3`, and `.ogg` formats
 
+## Choosing instrument folder per note in JSON
+
+Each note can now include an optional `sample_bank` field to explicitly select
+which folder under `data/` should be used for playback.
+
+- `instrument` (int): staff lane / visual instrument (0 or 1)
+- `sample_bank` (string, optional): exact folder name under `data/`
+
+Example note entries:
+
+```json
+{
+  "pitch": "C4",
+  "duration": 1.0,
+  "beat": 0.0,
+  "note_type": "quarter",
+  "instrument": 0,
+  "sample_bank": "instrument_3"
+}
+```
+
+```json
+{
+  "pitch": "G4",
+  "duration": 1.0,
+  "beat": 1.0,
+  "note_type": "quarter",
+  "instrument": 1,
+  "sample_bank": "instrument_pad"
+}
+```
+
+Behavior rules:
+
+1. If `sample_bank` is set and that folder exists (e.g. `data/instrument_3/`),
+   playback uses that bank first.
+2. If `sample_bank` is missing or invalid, playback falls back to `instrument`
+   index routing (`instrument` 0 -> `instrument_1`, `instrument` 1 -> `instrument_2`).
+3. Existing JSON without `sample_bank` continues to work.
+
 ## Backend Integration
 
 The `SequenceEditor` class in `commands.py` provides a simple string-based command API:

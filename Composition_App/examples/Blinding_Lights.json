@@ -1,0 +1,60 @@
+{
+  "header": {
+    "name": "Blinding Lights - Synth Hook",
+    "bpm": 171,
+    "time_sig_num": 4,
+    "time_sig_den": 4,
+    "key": "Fm"
+  },
+  "notes": [
+    { "pitch": "F4", "duration": 1.0, "beat": 0.0, "note_type": "quarter", "instrument": 0 },
+    { "pitch": "F4", "duration": 0.5, "beat": 1.0, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "Ab4", "duration": 0.5, "beat": 1.5, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "F4", "duration": 0.5, "beat": 2.0, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "Bb4", "duration": 1.0, "beat": 2.5, "note_type": "quarter", "instrument": 0 },
+    { "pitch": "REST", "duration": 0.5, "beat": 3.5, "note_type": "eighth", "instrument": 0 },
+    
+    { "pitch": "Eb4", "duration": 1.0, "beat": 4.0, "note_type": "quarter", "instrument": 0 },
+    { "pitch": "Eb4", "duration": 0.5, "beat": 5.0, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "G4", "duration": 0.5, "beat": 5.5, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "F4", "duration": 2.0, "beat": 6.0, "note_type": "half", "instrument": 0 },
+
+    { "pitch": "F4", "duration": 1.0, "beat": 8.0, "note_type": "quarter", "instrument": 0 },
+    { "pitch": "F4", "duration": 0.5, "beat": 9.0, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "Ab4", "duration": 0.5, "beat": 9.5, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "F4", "duration": 0.5, "beat": 10.0, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "Bb4", "duration": 1.0, "beat": 10.5, "note_type": "quarter", "instrument": 0 },
+    { "pitch": "REST", "duration": 0.5, "beat": 11.5, "note_type": "eighth", "instrument": 0 },
+
+    { "pitch": "C5", "duration": 1.0, "beat": 12.0, "note_type": "quarter", "instrument": 0 },
+    { "pitch": "C5", "duration": 0.5, "beat": 13.0, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "Bb4", "duration": 0.5, "beat": 13.5, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "Ab4", "duration": 1.0, "beat": 14.0, "note_type": "quarter", "instrument": 0 },
+    { "pitch": "G4", "duration": 1.0, "beat": 15.0, "note_type": "quarter", "instrument": 0 },
+
+    { "pitch": "F4", "duration": 1.0, "beat": 16.0, "note_type": "quarter", "instrument": 0 },
+    { "pitch": "F4", "duration": 0.5, "beat": 17.0, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "Ab4", "duration": 0.5, "beat": 17.5, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "F4", "duration": 0.5, "beat": 18.0, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "Bb4", "duration": 1.0, "beat": 18.5, "note_type": "quarter", "instrument": 0 },
+    { "pitch": "REST", "duration": 0.5, "beat": 19.5, "note_type": "eighth", "instrument": 0 },
+
+    { "pitch": "Eb4", "duration": 1.0, "beat": 20.0, "note_type": "quarter", "instrument": 0 },
+    { "pitch": "Eb4", "duration": 0.5, "beat": 21.0, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "G4", "duration": 0.5, "beat": 21.5, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "F4", "duration": 2.0, "beat": 22.0, "note_type": "half", "instrument": 0 },
+
+    { "pitch": "F4", "duration": 1.0, "beat": 24.0, "note_type": "quarter", "instrument": 0 },
+    { "pitch": "F4", "duration": 0.5, "beat": 25.0, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "Ab4", "duration": 0.5, "beat": 25.5, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "F4", "duration": 0.5, "beat": 26.0, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "Bb4", "duration": 1.0, "beat": 26.5, "note_type": "quarter", "instrument": 0 },
+    { "pitch": "REST", "duration": 0.5, "beat": 27.5, "note_type": "eighth", "instrument": 0 },
+
+    { "pitch": "C5", "duration": 1.0, "beat": 28.0, "note_type": "quarter", "instrument": 0 },
+    { "pitch": "C5", "duration": 0.5, "beat": 29.0, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "Bb4", "duration": 0.5, "beat": 29.5, "note_type": "eighth", "instrument": 0 },
+    { "pitch": "Ab4", "duration": 1.0, "beat": 30.0, "note_type": "quarter", "instrument": 0 },
+    { "pitch": "G4", "duration": 1.0, "beat": 31.0, "note_type": "quarter", "instrument": 0 }
+  ]
+}

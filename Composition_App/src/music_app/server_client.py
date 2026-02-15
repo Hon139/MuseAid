@@ -11,6 +11,7 @@ import asyncio
 import json
 import logging
 import os
+from typing import Any
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
@@ -51,6 +52,8 @@ class ServerClient(QThread):
         super().__init__(parent)
         self._url = server_url or os.environ.get("MUSEAID_SERVER_WS", _DEFAULT_WS_URL)
         self._running = True
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._ws: Any | None = None
 
     # ── QThread entry point ──────────────────────────────────────
 
@@ -58,14 +61,37 @@ class ServerClient(QThread):
         """Thread body — runs an asyncio event loop with reconnect logic."""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+        self._loop = loop
         try:
             loop.run_until_complete(self._connect_loop())
         finally:
+            self._loop = None
             loop.close()
 
     def stop(self) -> None:
         """Request a graceful shutdown of the background thread."""
         self._running = False
+
+        # Proactively close the websocket from this thread so the async recv loop
+        # wakes up immediately instead of waiting for network activity.
+        loop = self._loop
+        if loop and loop.is_running():
+            def _request_ws_close() -> None:
+                async def _close_ws() -> None:
+                    if self._ws is not None:
+                        try:
+                            await self._ws.close()
+                        except Exception:
+                            pass
+
+                asyncio.create_task(_close_ws())
+
+            try:
+                loop.call_soon_threadsafe(_request_ws_close)
+            except RuntimeError:
+                # Loop may already be shutting down.
+                pass
+
         self.wait(3000)
 
     # ── Internals ────────────────────────────────────────────────
@@ -77,10 +103,15 @@ class ServerClient(QThread):
         while self._running:
             try:
                 async with websockets.connect(self._url) as ws:
+                    self._ws = ws
                     logger.info("Connected to server at %s", self._url)
                     self.connected.emit()
                     await self._listen(ws)
+                    self._ws = None
             except Exception as exc:
+                self._ws = None
+                if not self._running:
+                    return
                 logger.warning("Connection lost (%s) — retrying in 2 s …", exc)
                 self.disconnected.emit()
                 # Wait before reconnecting, but check _running periodically.

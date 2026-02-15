@@ -7,6 +7,7 @@ from pathlib import Path
 from PyQt6.QtCore import QEasingCurve, QEvent, QPropertyAnimation, Qt
 from PyQt6.QtGui import QKeyEvent
 from PyQt6.QtWidgets import (
+    QApplication,
     QMainWindow, QVBoxLayout, QWidget, QLabel, QStatusBar, QScrollArea,
     QFileDialog, QHBoxLayout, QPushButton,
 )
@@ -72,6 +73,7 @@ class MainWindow(QMainWindow):
         self._key_cycle_base_indices: list[int | None] = []
         self._applying_key_cycle = False
         self._project_root = data_dir.parent
+        self._shutdown_complete = False
 
         # ── Widgets ──────────────────────────────────────────────
         self._staff = StaffWidget()
@@ -156,7 +158,27 @@ class MainWindow(QMainWindow):
         self._server_client.connected.connect(
             lambda: self._status.showMessage("Connected to MuseAid server")
         )
+        self._server_client.finished.connect(
+            lambda: self._request_global_shutdown("Server client closed — shutting down")
+        )
+        self._audio.destroyed.connect(
+            lambda: self._request_global_shutdown("Audio engine closed — shutting down")
+        )
         self._server_client.start()
+
+    def _request_global_shutdown(self, reason: str | None = None) -> None:
+        """Shut down all subsystems and quit the application.
+
+        Any critical subsystem teardown funnels through this function so
+        closing one component closes the whole app.
+        """
+        if reason:
+            self._status.showMessage(reason)
+
+        self._shutdown()
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
 
     # ── Scroll direction fix ────────────────────────────────────
 
@@ -313,7 +335,7 @@ class MainWindow(QMainWindow):
         note = self._editor.current_note
         if note is None or note.is_rest:
             return
-        self._audio.play_note(note.pitch, note.instrument)
+        self._audio.play_note(note.pitch, note.instrument, note.sample_bank)
 
     def _apply_light_theme(self) -> None:
         main_bg = "#f4f6fb"
@@ -705,7 +727,29 @@ class MainWindow(QMainWindow):
             f"Sequence updated from server — {len(new_seq.notes)} notes"
         )
 
+    def _shutdown(self) -> None:
+        """Release background resources exactly once."""
+        if self._shutdown_complete:
+            return
+        self._shutdown_complete = True
+
+        # Stop local playback first so no more timer callbacks fire during teardown.
+        try:
+            self._audio.stop()
+        except Exception:
+            pass
+
+        # Then stop network background thread and finally release audio backend.
+        try:
+            self._server_client.stop()
+        except Exception:
+            pass
+
+        try:
+            self._audio.cleanup()
+        except Exception:
+            pass
+
     def closeEvent(self, event) -> None:  # noqa: N802
-        self._server_client.stop()
-        self._audio.cleanup()
+        self._shutdown()
         super().closeEvent(event)

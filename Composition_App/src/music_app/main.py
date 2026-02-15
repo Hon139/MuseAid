@@ -59,6 +59,11 @@ def main() -> None:
     """)
 
     window = MainWindow(data_dir=data_dir, example_path=example_path)
+
+    # Ensure cleanup also runs when the app exits without a window close event
+    # (e.g. process-level quit requests).
+    app.aboutToQuit.connect(window._shutdown)
+
     window.show()
 
     sys.exit(app.exec())

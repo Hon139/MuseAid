@@ -103,6 +103,7 @@ class Note:
     beat: float = 0.0
     note_type: str = "quarter"
     instrument: int = 0
+    sample_bank: str | None = None
 
     @property
     def is_rest(self) -> bool:

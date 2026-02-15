@@ -1,8 +1,8 @@
 """Generate placeholder WAV samples for each note and instrument.
 
-Creates WAV files for two instruments:
-  - Instrument 1 (sine wave): data/instrument_<note>/
-  - Instrument 2 (triangle wave): data/instrument2_<note>/
+Creates WAV files using one folder per instrument:
+  - Instrument 1 (sine wave): data/instrument_1/
+  - Instrument 2 (triangle wave): data/instrument_2/
 
 Usage:
     uv run generate-samples
@@ -17,7 +17,7 @@ import numpy as np
 from scipy.io import wavfile
 from scipy.signal import sawtooth
 
-from .models import NOTE_FREQUENCIES, pitch_to_folder_name, pitch_to_filename
+from .models import NOTE_FREQUENCIES, pitch_to_filename
 
 # Audio parameters
 SAMPLE_RATE = 44100   # Hz
@@ -59,27 +59,22 @@ def generate_triangle(frequency: float) -> np.ndarray:
     return _to_stereo_16bit(wave)
 
 
-INSTRUMENTS = {
-    "instrument": generate_sine,       # Instrument 1 — sine
-    "instrument2": generate_triangle,  # Instrument 2 — triangle
-}
-
-
-def _folder_for_instrument(instrument_prefix: str, pitch: str) -> str:
-    """Build the folder name for a given instrument prefix and pitch."""
-    note_name = pitch[:-1].lower().replace("#", "_sharp")
-    return f"{instrument_prefix}_{note_name}"
+INSTRUMENTS = [
+    {"name": "Sine (Instrument 1)", "folder": "instrument_1", "generator": generate_sine},
+    {"name": "Triangle (Instrument 2)", "folder": "instrument_2", "generator": generate_triangle},
+]
 
 
 def generate_all_samples(data_dir: Path) -> None:
     """Generate WAV samples for all notes across all instruments."""
-    for prefix, gen_fn in INSTRUMENTS.items():
-        for pitch, freq in NOTE_FREQUENCIES.items():
-            folder_name = _folder_for_instrument(prefix, pitch)
-            filename = pitch_to_filename(pitch) + ".wav"
+    for inst in INSTRUMENTS:
+        folder_path = data_dir / inst["folder"]
+        folder_path.mkdir(parents=True, exist_ok=True)
+        gen_fn = inst["generator"]
 
-            folder_path = data_dir / folder_name
-            folder_path.mkdir(parents=True, exist_ok=True)
+        print(f"Generating {inst['name']} samples in {folder_path}...")
+        for pitch, freq in NOTE_FREQUENCIES.items():
+            filename = pitch_to_filename(pitch) + ".wav"
 
             file_path = folder_path / filename
             if file_path.exists():

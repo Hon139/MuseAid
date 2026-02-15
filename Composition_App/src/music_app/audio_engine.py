@@ -15,9 +15,15 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 from .models import Note, Sequence
 
 
-# Instrument folder prefixes (must match generate_samples.py)
-INSTRUMENT_PREFIXES = ["instrument", "instrument2"]
-INSTRUMENT_NAMES = ["Sine (Instrument 1)", "Triangle (Instrument 2)"]
+# One-folder-per-instrument layout (must match generate_samples.py)
+# Example:
+#   data/instrument_1/c4.wav
+#   data/instrument_2/c4.wav
+INSTRUMENT_DEFS = [
+    {"name": "Sine (Instrument 1)", "folder": "instrument_1", "legacy_prefix": "instrument"},
+    {"name": "Triangle (Instrument 2)", "folder": "instrument_2", "legacy_prefix": "instrument2"},
+]
+INSTRUMENT_NAMES = [d["name"] for d in INSTRUMENT_DEFS]
 NOTE_BLEND_OVERLAP_RATIO = 0.30  # quarter @ 120 BPM => 500ms * 0.30 = 150ms
 FLAT_TO_SHARP_EQUIV = {
     "CB": "B",
@@ -48,6 +54,8 @@ class AudioEngine(QObject):
         self._data_dir = data_dir
         # samples[instrument_idx][pitch] = Sound
         self._samples: dict[int, dict[str, pygame.mixer.Sound]] = {}
+        # samples_by_bank[folder_name][pitch] = Sound
+        self._samples_by_bank: dict[str, dict[str, pygame.mixer.Sound]] = {}
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._play_next)
@@ -72,30 +80,64 @@ class AudioEngine(QObject):
             print(f"Warning: Data directory {self._data_dir} does not exist.")
             return
 
-        for inst_idx, prefix in enumerate(INSTRUMENT_PREFIXES):
+        for inst_idx, inst in enumerate(INSTRUMENT_DEFS):
             self._samples[inst_idx] = {}
-            for folder in self._data_dir.iterdir():
-                if not folder.is_dir() or not folder.name.startswith(prefix + "_"):
-                    continue
-                # Skip instrument2_ folders when loading instrument (prefix="instrument")
-                if prefix == "instrument" and folder.name.startswith("instrument2_"):
-                    continue
+            folder = self._data_dir / inst["folder"]
+            if folder.exists() and folder.is_dir():
+                self._load_sample_files_from_folder(self._samples[inst_idx], folder)
 
-                for sample_file in folder.iterdir():
-                    ext = sample_file.suffix.lower()
-                    if ext in (".wav", ".mp3", ".ogg"):
-                        pitch = self._filename_to_pitch(sample_file.stem)
-                        if pitch:
-                            try:
-                                self._samples[inst_idx][pitch] = pygame.mixer.Sound(
-                                    str(sample_file)
-                                )
-                            except pygame.error as e:
-                                print(f"Warning: Could not load {sample_file}: {e}")
+            # Backward compatibility with legacy layout:
+            # data/instrument_<note>/c4.wav, data/instrument2_<note>/c4.wav
+            if not self._samples[inst_idx]:
+                self._load_legacy_samples(inst_idx, inst["legacy_prefix"])
 
-        for idx, prefix in enumerate(INSTRUMENT_PREFIXES):
+        # Load all one-folder-per-instrument banks for explicit JSON routing.
+        # Any folder named instrument_* can be targeted by note.sample_bank.
+        self._samples_by_bank = {}
+        for folder in self._data_dir.iterdir():
+            if not folder.is_dir() or not folder.name.startswith("instrument_"):
+                continue
+            bank_samples: dict[str, pygame.mixer.Sound] = {}
+            self._load_sample_files_from_folder(bank_samples, folder)
+            if bank_samples:
+                self._samples_by_bank[folder.name] = bank_samples
+
+        for idx, _ in enumerate(INSTRUMENT_DEFS):
             count = len(self._samples.get(idx, {}))
             print(f"Loaded {count} samples for {INSTRUMENT_NAMES[idx]}")
+
+        if self._samples_by_bank:
+            banks = ", ".join(sorted(self._samples_by_bank.keys()))
+            print(f"Available sample banks: {banks}")
+
+    def _load_sample_files_from_folder(
+        self,
+        target: dict[str, pygame.mixer.Sound],
+        folder: Path,
+    ) -> None:
+        """Load all supported audio files from a single instrument folder."""
+        for sample_file in folder.iterdir():
+            if not sample_file.is_file():
+                continue
+            ext = sample_file.suffix.lower()
+            if ext not in (".wav", ".mp3", ".ogg"):
+                continue
+            pitch = self._filename_to_pitch(sample_file.stem)
+            if not pitch:
+                continue
+            try:
+                target[pitch] = pygame.mixer.Sound(str(sample_file))
+            except pygame.error as e:
+                print(f"Warning: Could not load {sample_file}: {e}")
+
+    def _load_legacy_samples(self, inst_idx: int, prefix: str) -> None:
+        """Load from legacy per-note folder structure."""
+        for folder in self._data_dir.iterdir():
+            if not folder.is_dir() or not folder.name.startswith(prefix + "_"):
+                continue
+            if prefix == "instrument" and folder.name.startswith("instrument2_"):
+                continue
+            self._load_sample_files_from_folder(self._samples[inst_idx], folder)
 
     @staticmethod
     def _filename_to_pitch(stem: str) -> str | None:
@@ -107,15 +149,30 @@ class AudioEngine(QObject):
             return None
         return s[:-1].upper() + s[-1]
 
-    def play_note(self, pitch: str, instrument: int = 0) -> None:
+    def play_note(self, pitch: str, instrument: int = 0, sample_bank: str | None = None) -> None:
         """Play a single note sample on the selected instrument channel."""
         if pitch == "REST":
             return
-        # Always use instrument 1 sample bank for both staff instruments.
-        # This keeps 2-staff notation but avoids missing instrument2 samples.
-        inst_samples = self._samples.get(0, {})
+
+        # First priority: explicit sample bank from JSON (folder name under data/).
+        if sample_bank:
+            bank_samples = self._samples_by_bank.get(sample_bank, {})
+            sample_pitch = self._resolve_sample_pitch(pitch, bank_samples)
+            sound = bank_samples.get(sample_pitch) if sample_pitch else None
+            if sound is not None:
+                sound.play()
+                return
+
+        # Use selected instrument bank, then fallback to instrument 1 bank.
+        inst_samples = self._samples.get(instrument, {})
         sample_pitch = self._resolve_sample_pitch(pitch, inst_samples)
         sound = inst_samples.get(sample_pitch) if sample_pitch else None
+
+        if sound is None and instrument != 0:
+            fallback_samples = self._samples.get(0, {})
+            sample_pitch = self._resolve_sample_pitch(pitch, fallback_samples)
+            sound = fallback_samples.get(sample_pitch) if sample_pitch else None
+
         if sound is not None:
             # Use mixer-managed channel selection so previous notes can ring out
             # for their full sample duration without being cut off by the next note.
@@ -214,7 +271,7 @@ class AudioEngine(QObject):
             self.note_playing.emit(grouped[0][0])
 
         for _, note in grouped:
-            self.play_note(note.pitch, note.instrument)
+            self.play_note(note.pitch, note.instrument, note.sample_bank)
 
         # Schedule by distance to next beat group (enables simultaneous notes)
         if self._event_index + 1 < len(self._events):
