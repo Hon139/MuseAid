@@ -609,9 +609,9 @@ class MainWindow(QMainWindow):
         logger.warning("WebSocket disconnected from MuseAid server")
         self._status.showMessage("Disconnected from MuseAid server — waiting to reconnect")
 
-    def _sync_sequence_to_server(self, reason: str) -> None:
+    def _sync_sequence_to_server(self, reason: str) -> bool:
         if self._suppress_server_sync:
-            return
+            return True
         try:
             resp = requests.put(
                 f"{self._server_http_url.rstrip('/')}/sequence",
@@ -619,8 +619,16 @@ class MainWindow(QMainWindow):
                 timeout=3,
             )
             resp.raise_for_status()
+            logger.info(
+                "Synced sequence to server (%s): note_count=%d",
+                reason,
+                len(self._sequence.notes),
+            )
+            return True
         except Exception as exc:
+            logger.warning("Server sequence sync failed (%s): %s", reason, exc)
             self._status.showMessage(f"Server sequence sync failed ({reason}): {exc}")
+            return False
 
     def _refresh_title(self) -> None:
         ts = f"{self._sequence.time_sig_num}/{self._sequence.time_sig_den}"
@@ -1028,10 +1036,24 @@ class MainWindow(QMainWindow):
             self._stt_worker.stop_recording()
             return
 
-        selection_start = min(self._edit_cursors[0], self._edit_cursors[1])
-        selection_end = max(self._edit_cursors[0], self._edit_cursors[1])
+        # Preflight: push latest local sequence before issuing /speech.
+        synced = self._sync_sequence_to_server(reason="stt preflight")
+        if not synced:
+            logger.warning("STT preflight /sequence sync failed; proceeding with best effort")
+
+        selection_start: int | None = None
+        selection_end: int | None = None
+        if self._sequence.notes:
+            raw_start = min(self._edit_cursors[0], self._edit_cursors[1])
+            raw_end = max(self._edit_cursors[0], self._edit_cursors[1])
+            last_index = len(self._sequence.notes) - 1
+            selection_start = max(0, min(raw_start, last_index))
+            selection_end = max(0, min(raw_end, last_index))
+        else:
+            logger.info("Starting STT with empty local sequence; using unscoped speech edit")
+
         logger.info(
-            "Starting STT with selection range [%d..%d] (total_notes=%d)",
+            "Starting STT with selection range [%s..%s] (total_notes=%d)",
             selection_start,
             selection_end,
             len(self._sequence.notes),
@@ -1053,9 +1075,12 @@ class MainWindow(QMainWindow):
         self._stt_worker = worker
         self._stt_button.setText("Stop STT")
         self._stt_button.setEnabled(True)
-        self._status.showMessage(
-            f"STT: recording for selected note range [{selection_start}..{selection_end}]... click STT again to stop"
-        )
+        if selection_start is not None and selection_end is not None:
+            self._status.showMessage(
+                f"STT: recording for selected note range [{selection_start}..{selection_end}]... click STT again to stop"
+            )
+        else:
+            self._status.showMessage("STT: recording for full-sequence edit... click STT again to stop")
         worker.start()
 
     def _on_stt_status(self, message: str) -> None:
