@@ -153,8 +153,7 @@ class MainWindow(QMainWindow):
             combo.addItem("Auto", None)
             combo.setToolTip("Select default sample bank")
             for bank in available_banks:
-                display_bank = bank.replace("instrument_", "i")
-                combo.addItem(display_bank, bank)
+                combo.addItem(bank, bank)
 
             default_bank = self._audio.default_sample_bank(inst)
             if default_bank:

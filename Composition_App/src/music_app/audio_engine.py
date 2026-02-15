@@ -107,14 +107,16 @@ class AudioEngine(QObject):
                 self._load_legacy_samples(inst_idx, inst["legacy_prefix"])
 
         # Load all one-folder-per-instrument banks for explicit JSON routing.
-        # Any folder named instrument_* can be targeted by note.sample_bank.
+        # Any folder with a full note set can be targeted by note.sample_bank,
+        # so folder names can be real instrument names (e.g. "piano", "violin").
         self._samples_by_bank = {}
         for folder in self._data_dir.iterdir():
-            if not folder.is_dir() or not folder.name.startswith("instrument_"):
+            if not folder.is_dir():
                 continue
             bank_samples: dict[str, pygame.mixer.Sound] = {}
             self._load_sample_files_from_folder(bank_samples, folder)
-            if bank_samples:
+            # Ignore legacy per-note folders (usually 1-2 files each).
+            if len(bank_samples) >= 8:
                 self._samples_by_bank[folder.name] = bank_samples
 
         for idx, _ in enumerate(INSTRUMENT_DEFS):
