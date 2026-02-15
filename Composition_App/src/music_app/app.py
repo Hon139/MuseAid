@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from io import BytesIO
 from pathlib import Path
@@ -26,6 +27,8 @@ from .models import Sequence, PITCH_ORDER, KEY_SIGNATURES
 from .server_client import ServerClient
 from .staff_widget import StaffWidget
 from . import dbUtil
+
+logger = logging.getLogger("museaid.app")
 
 
 class SttRecordAndSendWorker(QThread):
@@ -429,6 +432,7 @@ class MainWindow(QMainWindow):
         self._server_client.command_received.connect(self._on_remote_command)
         self._server_client.sequence_received.connect(self._on_remote_sequence)
         self._server_client.connected.connect(self._on_server_connected)
+        self._server_client.disconnected.connect(self._on_server_disconnected)
         self._server_client.finished.connect(
             lambda: self._request_global_shutdown("Server client closed — shutting down")
         )
@@ -597,8 +601,13 @@ class MainWindow(QMainWindow):
         self._sync_sequence_to_server(reason="local edit")
 
     def _on_server_connected(self) -> None:
+        logger.info("WebSocket connected to MuseAid server")
         self._status.showMessage("Connected to MuseAid server")
         self._sync_sequence_to_server(reason="startup")
+
+    def _on_server_disconnected(self) -> None:
+        logger.warning("WebSocket disconnected from MuseAid server")
+        self._status.showMessage("Disconnected from MuseAid server — waiting to reconnect")
 
     def _sync_sequence_to_server(self, reason: str) -> None:
         if self._suppress_server_sync:
@@ -1021,6 +1030,12 @@ class MainWindow(QMainWindow):
 
         selection_start = min(self._edit_cursors[0], self._edit_cursors[1])
         selection_end = max(self._edit_cursors[0], self._edit_cursors[1])
+        logger.info(
+            "Starting STT with selection range [%d..%d] (total_notes=%d)",
+            selection_start,
+            selection_end,
+            len(self._sequence.notes),
+        )
 
         server_url = os.environ.get("MUSEAID_SERVER_URL", "http://localhost:8000")
         worker = SttRecordAndSendWorker(
@@ -1054,10 +1069,18 @@ class MainWindow(QMainWindow):
         try:
             payload = json.loads(server_payload)
         except Exception:
+            logger.warning("Non-JSON STT server response: %s", server_payload[:200])
             self._status.showMessage(f"STT server response: {server_payload[:120]}")
             return
 
         status = payload.get("status", "unknown")
+        logger.info(
+            "STT server response status=%s reason=%s selection=[%s..%s]",
+            status,
+            payload.get("reason"),
+            payload.get("selection_start_index"),
+            payload.get("selection_end_index"),
+        )
         if status == "ok":
             if "selection_start_index" in payload and "selection_end_index" in payload:
                 self._status.showMessage(
@@ -1232,13 +1255,17 @@ class MainWindow(QMainWindow):
         try:
             new_seq = Sequence.from_json(sequence_json)
         except Exception:
+            logger.exception("Failed to parse remote sequence payload")
             return
 
         # Ignore empty sequences from the server (e.g. the default "Untitled"
         # that the server sends on first connect).  We don't want to blow away
         # the locally-loaded composition with nothing.
         if not new_seq.notes:
+            logger.info("Ignoring empty remote sequence update")
             return
+
+        logger.info("Applying remote sequence update with %d notes", len(new_seq.notes))
 
         self._suppress_server_sync = True
         try:

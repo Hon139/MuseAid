@@ -73,6 +73,15 @@ async def receive_speech(payload: SpeechPayload) -> dict:
     selection_end = payload.selection_end_index
     scoped = selection_start is not None or selection_end is not None
 
+    logger.info(
+        "Speech request received: chars=%d scoped=%s selection_start=%s selection_end=%s current_notes=%d",
+        len(instruction),
+        scoped,
+        selection_start,
+        selection_end,
+        len(app_state.sequence.notes),
+    )
+
     if scoped:
         if selection_start is None or selection_end is None:
             return {
@@ -86,6 +95,13 @@ async def receive_speech(payload: SpeechPayload) -> dict:
         if not ok:
             return {"status": "error", "reason": reason}
 
+        if selection_start == selection_end and len(app_state.sequence.notes) > 1:
+            logger.warning(
+                "Speech edit constrained to a single note index [%d] out of %d total notes",
+                selection_start,
+                len(app_state.sequence.notes),
+            )
+
     current_sequence = app_state.sequence
     current_json = current_sequence.to_json()
     logger.info("Speech instruction: %r", instruction)
@@ -98,6 +114,11 @@ async def receive_speech(payload: SpeechPayload) -> dict:
             selection_end_index=selection_end,
         )
         new_sequence = Sequence.from_json(updated_json)
+        logger.info(
+            "Speech model output parsed: before_notes=%d after_notes=%d",
+            len(current_sequence.notes),
+            len(new_sequence.notes),
+        )
     except Exception:
         logger.exception("Gemini / parsing failed for instruction: %r", instruction)
         return {"status": "error", "reason": "failed to process instruction"}
