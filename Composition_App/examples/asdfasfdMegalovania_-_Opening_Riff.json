@@ -1,0 +1,233 @@
+{
+  "name": "Megalovania - Opening Riff",
+  "bpm": 120,
+  "time_sig_num": 4,
+  "time_sig_den": 4,
+  "key": "Dm",
+  "notes": [
+    {
+      "pitch": "D4",
+      "duration": 0.25,
+      "beat": 0.0,
+      "note_type": "sixteenth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "D4",
+      "duration": 0.25,
+      "beat": 0.25,
+      "note_type": "sixteenth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "D5",
+      "duration": 0.5,
+      "beat": 0.5,
+      "note_type": "eighth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "A4",
+      "duration": 0.75,
+      "beat": 1.0,
+      "note_type": "eighth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "G#4",
+      "duration": 0.5,
+      "beat": 1.75,
+      "note_type": "eighth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "G4",
+      "duration": 0.5,
+      "beat": 2.25,
+      "note_type": "eighth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "F4",
+      "duration": 0.5,
+      "beat": 2.75,
+      "note_type": "eighth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "D4",
+      "duration": 0.25,
+      "beat": 3.25,
+      "note_type": "sixteenth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "F4",
+      "duration": 0.25,
+      "beat": 3.5,
+      "note_type": "sixteenth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "G4",
+      "duration": 0.25,
+      "beat": 3.75,
+      "note_type": "sixteenth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "C4",
+      "duration": 0.25,
+      "beat": 4.0,
+      "note_type": "sixteenth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "C4",
+      "duration": 0.25,
+      "beat": 4.25,
+      "note_type": "sixteenth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "D5",
+      "duration": 0.5,
+      "beat": 4.5,
+      "note_type": "eighth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "A4",
+      "duration": 0.75,
+      "beat": 5.0,
+      "note_type": "eighth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "G#4",
+      "duration": 0.5,
+      "beat": 5.75,
+      "note_type": "eighth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "G4",
+      "duration": 0.5,
+      "beat": 6.25,
+      "note_type": "eighth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "F4",
+      "duration": 0.5,
+      "beat": 6.75,
+      "note_type": "eighth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "D4",
+      "duration": 0.25,
+      "beat": 7.25,
+      "note_type": "sixteenth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "F4",
+      "duration": 0.25,
+      "beat": 7.5,
+      "note_type": "sixteenth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "G4",
+      "duration": 0.25,
+      "beat": 7.75,
+      "note_type": "sixteenth",
+      "instrument": 0,
+      "sample_bank": null
+    },
+    {
+      "pitch": "D3",
+      "duration": 1.0,
+      "beat": 0.0,
+      "note_type": "quarter",
+      "instrument": 1,
+      "sample_bank": null
+    },
+    {
+      "pitch": "D3",
+      "duration": 1.0,
+      "beat": 1.0,
+      "note_type": "quarter",
+      "instrument": 1,
+      "sample_bank": null
+    },
+    {
+      "pitch": "D3",
+      "duration": 1.0,
+      "beat": 2.0,
+      "note_type": "quarter",
+      "instrument": 1,
+      "sample_bank": null
+    },
+    {
+      "pitch": "D3",
+      "duration": 1.0,
+      "beat": 3.0,
+      "note_type": "quarter",
+      "instrument": 1,
+      "sample_bank": null
+    },
+    {
+      "pitch": "C3",
+      "duration": 1.0,
+      "beat": 4.0,
+      "note_type": "quarter",
+      "instrument": 1,
+      "sample_bank": null
+    },
+    {
+      "pitch": "C3",
+      "duration": 1.0,
+      "beat": 5.0,
+      "note_type": "quarter",
+      "instrument": 1,
+      "sample_bank": null
+    },
+    {
+      "pitch": "C3",
+      "duration": 1.0,
+      "beat": 6.0,
+      "note_type": "quarter",
+      "instrument": 1,
+      "sample_bank": null
+    },
+    {
+      "pitch": "C3",
+      "duration": 1.0,
+      "beat": 7.0,
+      "note_type": "quarter",
+      "instrument": 1,
+      "sample_bank": null
+    }
+  ]
+}

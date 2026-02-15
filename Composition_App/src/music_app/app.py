@@ -89,18 +89,32 @@ class MainWindow(QMainWindow):
         )
         self._load_json_button = QPushButton("Load JSON")
         self._save_json_button = QPushButton("Save JSON")
+        self._upload_button = QPushButton("Upload")
+        self._download_button = QPushButton("Download")
         self._load_json_button.setFixedHeight(28)
         self._save_json_button.setFixedHeight(28)
+        self._upload_button.setFixedHeight(28)
+        self._download_button.setFixedHeight(28)
         self._load_json_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._save_json_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._upload_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._download_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._load_json_button.setAutoDefault(False)
         self._save_json_button.setAutoDefault(False)
+        self._upload_button.setAutoDefault(False)
+        self._download_button.setAutoDefault(False)
         self._load_json_button.setDefault(False)
         self._save_json_button.setDefault(False)
+        self._upload_button.setDefault(False)
+        self._download_button.setDefault(False)
         self._load_json_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._save_json_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._upload_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._download_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._load_json_button.clicked.connect(self._load_json_sequence)
         self._save_json_button.clicked.connect(self._save_json_sequence)
+        self._upload_button.clicked.connect(self._upload_json_file)
+        self._download_button.clicked.connect(self._download_json_file)
 
         # Per-lane sample bank selectors (left side)
         self._bank_combo_boxes: dict[int, QComboBox] = {}
@@ -174,6 +188,8 @@ class MainWindow(QMainWindow):
         top_bar_layout.addWidget(self._title_label, stretch=1)
         top_bar_layout.addWidget(self._load_json_button)
         top_bar_layout.addWidget(self._save_json_button)
+        top_bar_layout.addWidget(self._upload_button)
+        top_bar_layout.addWidget(self._download_button)
 
         self._content_row = QWidget()
         content_layout = QHBoxLayout(self._content_row)
@@ -449,6 +465,8 @@ class MainWindow(QMainWindow):
         )
         self._load_json_button.setStyleSheet(button_style)
         self._save_json_button.setStyleSheet(button_style)
+        self._upload_button.setStyleSheet(button_style)
+        self._download_button.setStyleSheet(button_style)
         combo_style = (
             "QComboBox {"
             f"  background: {button_bg};"
@@ -707,6 +725,60 @@ class MainWindow(QMainWindow):
                 
         except Exception as exc:
             self._status.showMessage(f"Database save failed: {exc}")
+
+    def _upload_json_file(self) -> None:
+        """Load a sequence JSON from the examples directory."""
+        start_dir = Path(self._project_root) / "examples"
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load Sequence JSON",
+            str(start_dir),
+            "JSON Files (*.json)",
+        )
+        if not file_path:
+            return
+
+        try:
+            new_seq = Sequence.from_file(Path(file_path))
+            self._sequence = new_seq
+            self._editor.sequence = self._sequence
+            self._edit_cursors = [0, 0]
+            self._active_edit_cursor_slot = 0
+            self._active_cursor_focus = 0
+            self._playback_cursor_index = 0
+            self._playback_start_index = 0
+            self._editor.cursor = 0
+            self._staff.set_sequence(self._sequence)
+            self._staff.set_playback_cursor(0 if self._sequence.notes else -1)
+            self._reset_key_cycle_memory()
+            self._refresh_title()
+            self._status.showMessage(f"Loaded JSON: {Path(file_path).name}")
+        except Exception as exc:  # pragma: no cover - GUI feedback path
+            self._status.showMessage(f"JSON load failed: {exc}")
+
+    def _download_json_file(self) -> None:
+        """Save the current sequence JSON into the examples directory."""
+        start_dir = Path(self._project_root) / "examples"
+        start_dir.mkdir(parents=True, exist_ok=True)
+        default_name = f"{self._sequence.name.replace(' ', '_')}.json"
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Sequence JSON",
+            str(start_dir / default_name),
+            "JSON Files (*.json)",
+        )
+        if not file_path:
+            return
+
+        out = Path(file_path)
+        if out.suffix.lower() != ".json":
+            out = out.with_suffix(".json")
+
+        try:
+            self._sequence.save(out)
+            self._status.showMessage(f"Saved JSON: {out.name}")
+        except Exception as exc:  # pragma: no cover - GUI feedback path
+            self._status.showMessage(f"JSON save failed: {exc}")
 
     def _export_midi(self) -> None:
         """Export current sequence as MIDI."""
