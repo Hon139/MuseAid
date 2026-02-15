@@ -17,7 +17,7 @@ logger = logging.getLogger("museaid.gemini")
 # Load workspace-level .env: `<repo>/.env`
 load_dotenv(dotenv_path=Path(__file__).resolve().parents[4] / ".env")
 
-MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-3-flash")
 
 
 def _load_extra_prompt() -> str:
