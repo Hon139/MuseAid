@@ -8,9 +8,9 @@ services:
     ports:
       - "8090:8090"  # Browser preview: http://localhost:8090/
     environment:
-      - CAMERA_SRC=http://100.66.77.132:7123/stream.mjpg
+      - CAMERA_SRC=http://100.73.249.6:7123/stream.mjpg
       - HEADLESS=1
       - ENABLE_MJPEG=1
       - MJPEG_PORT=8090
-      - MUSEAID_SERVER_URL=http://localhost:8000
+      - MUSEAID_SERVER_URL=http://100.120.43.63:8000
     restart: unless-stopped
