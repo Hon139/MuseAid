@@ -45,31 +45,48 @@ def _is_sharp(pitch: str) -> bool:
 
 class StaffWidget(QWidget):
     # Layout
-    STAFF_LEFT_MARGIN = 120
-    STAFF_RIGHT_MARGIN = 60
-    STAFF_TOP_MARGIN = 70
-    LINE_SPACING = 20
-    NOTE_SPACING = 80
-    NOTE_HEAD_RX = 10
-    NOTE_HEAD_RY = 8
-    STEM_LENGTH = 55
+    STAFF_LEFT_MARGIN = 84
+    STAFF_RIGHT_MARGIN = 32
+    STAFF_TOP_MARGIN = 30
+    LINE_SPACING = 13
+    NOTE_SPACING = 46
+    NOTE_HEAD_RX = 6
+    NOTE_HEAD_RY = 4
+    STEM_LENGTH = 36
 
-    KEY_SIG_X_START = 50
-    STAFF_SYSTEM_GAP = 90
-    INSTRUMENT_GAP = 75  # gap between top and bottom instrument staff
+    KEY_SIG_X_START = 44
+    STAFF_SYSTEM_GAP = 28
+    INSTRUMENT_GAP = 42  # gap between top and bottom instrument staff
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._sequence: Sequence | None = None
-        self._highlight_index: int = -1
-        self._cursor_index: int = -1
+        self._playback_index: int = -1
+        self._cursor_primary_index: int = -1
+        self._cursor_secondary_index: int = -1
+        self._active_cursor_slot: int = 0
         self._beat_order: list[float] = []
         self._beat_rank: dict[float, int] = {}
+        self._colors = {
+            "staff_bg": QColor(252, 253, 255),
+            "staff_line": QColor(102, 112, 142),
+            "notation": QColor(54, 64, 94),
+            "barline": QColor(96, 106, 136),
+            "playback": QColor(56, 156, 255),
+            "active": QColor(255, 111, 61),
+            "inactive": QColor(106, 120, 224),
+            "note": QColor(38, 45, 68),
+            "ledger": QColor(106, 116, 145),
+            "inst2": QColor(102, 190, 136, 175),
+        }
 
-        self.setMinimumWidth(950)
+        self.setMinimumWidth(780)
         self.setAutoFillBackground(True)
+        self._apply_widget_palette()
+
+    def _apply_widget_palette(self) -> None:
         palette = self.palette()
-        palette.setColor(palette.ColorRole.Window, QColor(255, 255, 255))
+        palette.setColor(palette.ColorRole.Window, self._colors["staff_bg"])
         self.setPalette(palette)
 
     # ---- public API ----
@@ -79,16 +96,22 @@ class StaffWidget(QWidget):
         self._update_height()
         self.update()
 
-    def set_highlight(self, index: int) -> None:
-        self._highlight_index = index
+    def set_playback_cursor(self, index: int) -> None:
+        self._playback_index = index
         self.update()
 
-    def clear_highlight(self) -> None:
-        self._highlight_index = -1
+    def clear_playback_cursor(self) -> None:
+        self._playback_index = -1
         self.update()
 
     def set_cursor(self, index: int) -> None:
-        self._cursor_index = index
+        """Backwards-compatible single-cursor API."""
+        self.set_cursors(index, -1, active_slot=0)
+
+    def set_cursors(self, primary: int, secondary: int, active_slot: int) -> None:
+        self._cursor_primary_index = primary
+        self._cursor_secondary_index = secondary
+        self._active_cursor_slot = 0 if active_slot == 0 else 1
         self.update()
 
     def note_center(self, index: int) -> tuple[int, int] | None:
@@ -128,13 +151,13 @@ class StaffWidget(QWidget):
         num_acc, _ = self._sequence.key_info
         if num_acc == 0:
             return 0
-        return num_acc * 14 + 10
+        return num_acc * 11 + 8
 
     def _time_sig_x(self) -> float:
         return self.STAFF_LEFT_MARGIN + self.KEY_SIG_X_START + self._key_sig_width()
 
     def _first_note_x_offset(self) -> float:
-        return self.KEY_SIG_X_START + self._key_sig_width() + 45
+        return self.KEY_SIG_X_START + self._key_sig_width() + 34
 
     def _beats_per_line(self) -> int:
         available = (
@@ -151,11 +174,11 @@ class StaffWidget(QWidget):
         if not self._beat_order:
             return 1
         bpl = self._beats_per_line()
-        return min(2, (len(self._beat_order) + bpl - 1) // bpl)
+        return min(4, (len(self._beat_order) + bpl - 1) // bpl)
 
     def _line_for_note(self, note: Note) -> int:
         rank = self._beat_rank.get(note.beat, 0)
-        return min(rank // self._beats_per_line(), 1)
+        return min(rank // self._beats_per_line(), 3)
 
     def _index_in_line_for_note(self, note: Note) -> int:
         rank = self._beat_rank.get(note.beat, 0)
@@ -163,7 +186,7 @@ class StaffWidget(QWidget):
         return rank - line * self._beats_per_line()
 
     def _line_for_beat_rank(self, rank: int) -> int:
-        return min(rank // self._beats_per_line(), 1)
+        return min(rank // self._beats_per_line(), 3)
 
     def _index_in_line_for_beat_rank(self, rank: int) -> int:
         line = self._line_for_beat_rank(rank)
@@ -174,14 +197,14 @@ class StaffWidget(QWidget):
 
     def _system_height(self) -> float:
         # two staves + stems + inter-staff gap + padding
-        return (2 * self._staff_height()) + self.INSTRUMENT_GAP + (2 * self.STEM_LENGTH) + 40
+        return (2 * self._staff_height()) + self.INSTRUMENT_GAP + (2 * self.STEM_LENGTH) + 18
 
     def _update_height(self) -> None:
         n = self._num_lines()
         h = self.STAFF_TOP_MARGIN + n * self._system_height()
         if n > 1:
             h += self.STAFF_SYSTEM_GAP * (n - 1)
-        h += 60
+        h += 36
         self.setMinimumHeight(int(h))
 
     def _system_top_y(self, line_num: int) -> float:
@@ -230,13 +253,14 @@ class StaffWidget(QWidget):
                     self._draw_rest(p, i, note, ln, idx)
                 else:
                     self._draw_note(p, i, note, ln, idx)
+            self._draw_playback_line(p)
             self._draw_bar_lines(p, n_lines)
 
         p.end()
 
     # ---- shared notation elements ----
     def _draw_staff_lines(self, p: QPainter, ln: int, instrument: int) -> None:
-        p.setPen(QPen(QColor(80, 80, 80), 1.2))
+        p.setPen(QPen(self._colors["staff_line"], 1.1))
         right = self.width() - self.STAFF_RIGHT_MARGIN
         for i in range(5):
             y = self._staff_line_y(ln, i, instrument)
@@ -252,8 +276,8 @@ class StaffWidget(QWidget):
         positions = SHARP_POSITIONS if is_sharps else FLAT_POSITIONS
         symbol = "♯" if is_sharps else "♭"
 
-        p.setFont(QFont("serif", 16, QFont.Weight.Bold))
-        p.setPen(QColor(40, 40, 40))
+        p.setFont(QFont("serif", 13, QFont.Weight.Bold))
+        p.setPen(self._colors["notation"])
 
         x_start = self.STAFF_LEFT_MARGIN + self.KEY_SIG_X_START
         for i in range(num_acc):
@@ -265,9 +289,9 @@ class StaffWidget(QWidget):
     def _draw_time_signature(self, p: QPainter, ln: int, instrument: int) -> None:
         if not self._sequence:
             return
-        x = self._time_sig_x() + 15
-        p.setFont(QFont("serif", 22, QFont.Weight.Bold))
-        p.setPen(QColor(40, 40, 40))
+        x = self._time_sig_x() + 12
+        p.setFont(QFont("serif", 18, QFont.Weight.Bold))
+        p.setPen(self._colors["notation"])
 
         top = self._staff_line_y(ln, 0, instrument)
         mid = self._staff_line_y(ln, 2, instrument)
@@ -280,30 +304,16 @@ class StaffWidget(QWidget):
 
     def _draw_treble_clef(self, p: QPainter, ln: int, instrument: int) -> None:
         p.save()
-        g_y = self._staff_line_y(ln, 3, instrument)
-        x = self.STAFF_LEFT_MARGIN + 22
-        s = self.LINE_SPACING / 16.0
-        pen = QPen(QColor(40, 40, 40), 2.2 * s)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        p.setPen(pen)
-        p.setBrush(Qt.BrushStyle.NoBrush)
+        top = self._staff_line_y(ln, 0, instrument)
+        bot = self._staff_line_y(ln, 4, instrument)
+        x = self.STAFF_LEFT_MARGIN + self.LINE_SPACING * 0.2
 
-        ls = self.LINE_SPACING
-        bot = g_y + 3.0 * ls
-        top = g_y - 3.5 * ls
-        path = QPainterPath()
-        path.moveTo(x + 4 * s, bot)
-        path.cubicTo(x - 12 * s, bot - 4 * s, x - 8 * s, bot - 16 * s, x + 2 * s, bot - 14 * s)
-        path.cubicTo(x + 10 * s, bot - 12 * s, x + 16 * s, g_y + 2 * ls, x + 14 * s, g_y + 0.5 * ls)
-        path.cubicTo(x + 12 * s, g_y - 0.8 * ls, x - 14 * s, g_y - 1.0 * ls, x - 10 * s, g_y - 2.5 * ls)
-        path.cubicTo(x - 6 * s, top, x + 10 * s, top, x + 4 * s, g_y - 1.5 * ls)
-        path.cubicTo(x, g_y - 0.5 * ls, x - 8 * s, g_y + 0.5 * ls, x - 6 * s, g_y + 1.5 * ls)
-        path.cubicTo(x - 4 * s, g_y + 2.2 * ls, x + 2 * s, g_y + 2.5 * ls, x + 4 * s, bot)
-        p.drawPath(path)
-        p.drawLine(QPointF(x + 4 * s, top + 6 * s), QPointF(x + 4 * s, bot))
-        p.setBrush(QBrush(QColor(40, 40, 40)))
-        p.drawEllipse(QPointF(x + 4 * s, bot + 2 * s), 3 * s, 3 * s)
+        # Prefer a proper Unicode G-clef glyph; much cleaner than hand-drawn paths
+        # at small sizes and more consistent across zoom/layout changes.
+        p.setPen(self._colors["notation"])
+        p.setFont(QFont("Segoe UI Symbol", int(self.LINE_SPACING * 3.8), QFont.Weight.Normal))
+        rect = QRectF(x, top - self.LINE_SPACING * 2.2, self.LINE_SPACING * 3.4, (bot - top) + self.LINE_SPACING * 4.4)
+        p.drawText(rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter, "𝄞")
         p.restore()
 
     def _draw_bar_lines(self, p: QPainter, n_lines: int) -> None:
@@ -312,7 +322,7 @@ class StaffWidget(QWidget):
             return
 
         beats_per_measure = seq.beats_per_measure
-        p.setPen(QPen(QColor(60, 60, 60), 1.4))
+        p.setPen(QPen(self._colors["barline"], 1.25))
 
         for beat in self._beat_order:
             if beat <= 0 or beat % beats_per_measure != 0:
@@ -338,10 +348,33 @@ class StaffWidget(QWidget):
         for inst in (0, 1):
             top = self._staff_line_y(line, 0, inst)
             bot = self._staff_line_y(line, 4, inst)
-            p.setPen(QPen(QColor(50, 50, 50), 1.4))
+            p.setPen(QPen(self._colors["barline"], 1.25))
             p.drawLine(int(x), int(top), int(x), int(bot))
-            p.setPen(QPen(QColor(50, 50, 50), 3.5))
+            p.setPen(QPen(self._colors["barline"], 2.8))
             p.drawLine(int(x + 6), int(top), int(x + 6), int(bot))
+
+    def _draw_playback_line(self, p: QPainter) -> None:
+        if (
+            not self._sequence
+            or self._playback_index < 0
+            or self._playback_index >= len(self._sequence.notes)
+        ):
+            return
+
+        note = self._sequence.notes[self._playback_index]
+        rank = self._beat_rank.get(note.beat)
+        if rank is None:
+            return
+
+        line = self._line_for_beat_rank(rank)
+        idx = self._index_in_line_for_beat_rank(rank)
+        x = self._note_x(idx)
+
+        top = self._staff_line_y(line, 0, 0) - 18
+        bot = self._staff_line_y(line, 4, 1) + 18
+
+        p.setPen(QPen(self._colors["playback"], 2.2))
+        p.drawLine(int(x), int(top), int(x), int(bot))
 
     # ---- rests ----
     def _draw_rest(self, p: QPainter, gi: int, note: Note, ln: int, idx: int) -> None:
@@ -350,11 +383,14 @@ class StaffWidget(QWidget):
         inst = note.instrument
         mid_y = self._staff_line_y(ln, 2, inst)
 
-        is_hl = gi == self._highlight_index
-        is_cur = gi == self._cursor_index
-        color = QColor(30, 144, 255) if is_hl else QColor(255, 100, 50) if is_cur else QColor(40, 40, 40)
+        active_idx = self._cursor_primary_index if self._active_cursor_slot == 0 else self._cursor_secondary_index
+        inactive_idx = self._cursor_secondary_index if self._active_cursor_slot == 0 else self._cursor_primary_index
+        is_active_cur = gi == active_idx
+        is_inactive_cur = gi == inactive_idx
 
-        p.setFont(QFont("serif", 24, QFont.Weight.Bold))
+        color = self._colors["active"] if is_active_cur else (self._colors["inactive"] if is_inactive_cur else self._colors["note"])
+
+        p.setFont(QFont("serif", 19, QFont.Weight.Bold))
         p.setPen(color)
 
         if nt == NoteType.WHOLE:
@@ -384,9 +420,14 @@ class StaffWidget(QWidget):
             p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawLine(int(cx + 3), int(y0), int(cx - 5), int(y0 + self.LINE_SPACING * 1.5))
 
-        if is_cur and not is_hl:
+        if is_active_cur or is_inactive_cur:
             p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QBrush(QColor(255, 100, 50, 150)))
+            marker = QColor(self._colors["active"])
+            marker.setAlpha(155)
+            if is_inactive_cur:
+                marker = QColor(self._colors["inactive"])
+                marker.setAlpha(145)
+            p.setBrush(QBrush(marker))
             tri = QPainterPath()
             ty = mid_y + self.LINE_SPACING + 12
             tri.moveTo(cx - 5, ty)
@@ -404,14 +445,16 @@ class StaffWidget(QWidget):
         cy = self._note_y(ln, staff_pos, inst)
         nt = note.get_note_type()
 
-        is_hl = gi == self._highlight_index
-        is_cur = gi == self._cursor_index
-        color = QColor(30, 144, 255) if is_hl else QColor(255, 100, 50) if is_cur else QColor(30, 30, 30)
+        active_idx = self._cursor_primary_index if self._active_cursor_slot == 0 else self._cursor_secondary_index
+        inactive_idx = self._cursor_secondary_index if self._active_cursor_slot == 0 else self._cursor_primary_index
+        is_active_cur = gi == active_idx
+        is_inactive_cur = gi == inactive_idx
+        color = self._colors["active"] if is_active_cur else (self._colors["inactive"] if is_inactive_cur else self._colors["note"])
 
         rx, ry = self.NOTE_HEAD_RX, self.NOTE_HEAD_RY
 
         # ledger lines
-        p.setPen(QPen(QColor(80, 80, 80), 1.2))
+        p.setPen(QPen(self._colors["ledger"], 1.0))
         if staff_pos <= -6:
             for pos in range(-6, -4, 2):
                 if pos >= staff_pos:
@@ -469,14 +512,14 @@ class StaffWidget(QWidget):
 
         # accidental
         if _is_sharp(note.pitch):
-            p.setFont(QFont("serif", 15, QFont.Weight.Bold))
+            p.setFont(QFont("serif", 12, QFont.Weight.Bold))
             p.setPen(color)
             p.drawText(int(cx - rx - 20), int(cy + 5), "♯")
 
         # small visual marker for instrument 2
         if note.instrument == 1:
             p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QBrush(QColor(100, 180, 100, 180)))
+            p.setBrush(QBrush(self._colors["inst2"]))
             diamond = QPainterPath()
             dx = cx + rx + 8
             dy = cy
@@ -488,9 +531,14 @@ class StaffWidget(QWidget):
             p.drawPath(diamond)
             p.setBrush(Qt.BrushStyle.NoBrush)
 
-        if is_cur and not is_hl:
+        if is_active_cur or is_inactive_cur:
             p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QBrush(QColor(255, 100, 50, 150)))
+            marker = QColor(self._colors["active"])
+            marker.setAlpha(155)
+            if is_inactive_cur:
+                marker = QColor(self._colors["inactive"])
+                marker.setAlpha(145)
+            p.setBrush(QBrush(marker))
             tri = QPainterPath()
             ty = cy + ry + 14
             tri.moveTo(cx - 6, ty)

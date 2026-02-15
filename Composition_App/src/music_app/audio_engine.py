@@ -48,7 +48,7 @@ class AudioEngine(QObject):
         # Only init the mixer subsystem — full pygame.init() conflicts with Qt on Windows
         pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=4096)
         pygame.mixer.init()
-        pygame.mixer.set_num_channels(8)
+        pygame.mixer.set_num_channels(32)
         self._channels[0] = pygame.mixer.Channel(0)
         self._channels[1] = pygame.mixer.Channel(1)
 
@@ -102,22 +102,35 @@ class AudioEngine(QObject):
         inst_samples = self._samples.get(instrument, self._samples.get(0, {}))
         sound = inst_samples.get(pitch)
         if sound is not None:
-            channel = self._channels.get(instrument, self._channels.get(0))
-            if channel is not None:
-                channel.stop()
-                channel.play(sound)
-            else:
-                sound.play()
+            # Use mixer-managed channel selection so previous notes can ring out
+            # for their full sample duration without being cut off by the next note.
+            sound.play()
         else:
             print(f"Warning: No sample for {pitch} (instrument {instrument})")
 
-    def play_sequence(self, sequence: Sequence) -> None:
-        """Start playing a sequence from the beginning."""
+    def play_sequence(self, sequence: Sequence, start_index: int = 0) -> None:
+        """Start playing a sequence, optionally from a specific note index."""
         if self._playing:
             self.stop()
         self._current_sequence = sequence
         self._events = self._build_events(sequence)
         self._event_index = 0
+
+        if self._events and sequence.notes:
+            clamped_index = max(0, min(start_index, len(sequence.notes) - 1))
+            start_beat = sequence.notes[clamped_index].beat
+            for i, (beat, _) in enumerate(self._events):
+                if beat >= start_beat:
+                    self._event_index = i
+                    break
+            else:
+                self._event_index = len(self._events) - 1
+
+        if not self._events:
+            self._playing = False
+            self.playback_finished.emit()
+            return
+
         self._playing = True
         self._play_current()
 

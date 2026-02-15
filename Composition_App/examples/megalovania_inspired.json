@@ -1,0 +1,64 @@
+{
+  "name": "Megalovania Inspired",
+  "bpm": 120,
+  "time_sig_num": 4,
+  "time_sig_den": 4,
+  "key": "Dm",
+  "notes": [
+    {"pitch": "D4", "duration": 0.5, "beat": 0.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "D4", "duration": 0.5, "beat": 0.5, "note_type": "eighth", "instrument": 0},
+    {"pitch": "A4", "duration": 0.5, "beat": 1.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "G#4", "duration": 0.5, "beat": 1.5, "note_type": "eighth", "instrument": 0},
+    {"pitch": "G4", "duration": 0.5, "beat": 2.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "F4", "duration": 0.5, "beat": 2.5, "note_type": "eighth", "instrument": 0},
+    {"pitch": "D4", "duration": 0.5, "beat": 3.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "F4", "duration": 0.5, "beat": 3.5, "note_type": "eighth", "instrument": 0},
+
+    {"pitch": "G4", "duration": 0.5, "beat": 4.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "D4", "duration": 0.5, "beat": 4.5, "note_type": "eighth", "instrument": 0},
+    {"pitch": "F4", "duration": 0.5, "beat": 5.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "E4", "duration": 0.5, "beat": 5.5, "note_type": "eighth", "instrument": 0},
+    {"pitch": "D4", "duration": 0.5, "beat": 6.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "C4", "duration": 0.5, "beat": 6.5, "note_type": "eighth", "instrument": 0},
+    {"pitch": "A3", "duration": 0.5, "beat": 7.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "C4", "duration": 0.5, "beat": 7.5, "note_type": "eighth", "instrument": 0},
+
+    {"pitch": "D4", "duration": 0.5, "beat": 8.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "F4", "duration": 0.5, "beat": 8.5, "note_type": "eighth", "instrument": 0},
+    {"pitch": "A4", "duration": 0.5, "beat": 9.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "C5", "duration": 0.5, "beat": 9.5, "note_type": "eighth", "instrument": 0},
+    {"pitch": "A4", "duration": 0.5, "beat": 10.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "F4", "duration": 0.5, "beat": 10.5, "note_type": "eighth", "instrument": 0},
+    {"pitch": "E4", "duration": 0.5, "beat": 11.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "D4", "duration": 0.5, "beat": 11.5, "note_type": "eighth", "instrument": 0},
+
+    {"pitch": "D5", "duration": 0.5, "beat": 12.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "C5", "duration": 0.5, "beat": 12.5, "note_type": "eighth", "instrument": 0},
+    {"pitch": "A4", "duration": 0.5, "beat": 13.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "F4", "duration": 0.5, "beat": 13.5, "note_type": "eighth", "instrument": 0},
+    {"pitch": "G4", "duration": 0.5, "beat": 14.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "A4", "duration": 0.5, "beat": 14.5, "note_type": "eighth", "instrument": 0},
+    {"pitch": "C5", "duration": 0.5, "beat": 15.0, "note_type": "eighth", "instrument": 0},
+    {"pitch": "D5", "duration": 0.5, "beat": 15.5, "note_type": "eighth", "instrument": 0},
+
+    {"pitch": "D3", "duration": 1.0, "beat": 0.0, "note_type": "quarter", "instrument": 1},
+    {"pitch": "A3", "duration": 1.0, "beat": 1.0, "note_type": "quarter", "instrument": 1},
+    {"pitch": "C4", "duration": 1.0, "beat": 2.0, "note_type": "quarter", "instrument": 1},
+    {"pitch": "A3", "duration": 1.0, "beat": 3.0, "note_type": "quarter", "instrument": 1},
+
+    {"pitch": "D3", "duration": 1.0, "beat": 4.0, "note_type": "quarter", "instrument": 1},
+    {"pitch": "A3", "duration": 1.0, "beat": 5.0, "note_type": "quarter", "instrument": 1},
+    {"pitch": "C4", "duration": 1.0, "beat": 6.0, "note_type": "quarter", "instrument": 1},
+    {"pitch": "A3", "duration": 1.0, "beat": 7.0, "note_type": "quarter", "instrument": 1},
+
+    {"pitch": "Bb3", "duration": 1.0, "beat": 8.0, "note_type": "quarter", "instrument": 1},
+    {"pitch": "F3", "duration": 1.0, "beat": 9.0, "note_type": "quarter", "instrument": 1},
+    {"pitch": "A3", "duration": 1.0, "beat": 10.0, "note_type": "quarter", "instrument": 1},
+    {"pitch": "F3", "duration": 1.0, "beat": 11.0, "note_type": "quarter", "instrument": 1},
+
+    {"pitch": "C4", "duration": 1.0, "beat": 12.0, "note_type": "quarter", "instrument": 1},
+    {"pitch": "G3", "duration": 1.0, "beat": 13.0, "note_type": "quarter", "instrument": 1},
+    {"pitch": "Bb3", "duration": 1.0, "beat": 14.0, "note_type": "quarter", "instrument": 1},
+    {"pitch": "A3", "duration": 1.0, "beat": 15.0, "note_type": "quarter", "instrument": 1}
+  ]
+}

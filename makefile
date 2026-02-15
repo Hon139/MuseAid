@@ -37,8 +37,16 @@ composition-app:
 gesture-app:
 	cd hand-gesture-app && $(UV_SYNC) && uv run python -m src.main
 
-## run-all: Launch server, composition app, and gesture app concurrently (Linux/macOS)
+## run-all: Launch server, composition app, and gesture app concurrently
 run-all: sync
+ifeq ($(OS),Windows_NT)
+	@echo "Starting all MuseAid components in separate terminals (Windows)..."
+	start "MuseAid Server" cmd /k "cd /d server && uv run uvicorn museaid_server.main:app --reload --host 0.0.0.0 --port 8000"
+	powershell -NoProfile -Command "Start-Sleep -Seconds 3"
+	start "Composition App" cmd /k "cd /d Composition_App && uv run music-app"
+	start "Gesture App" cmd /k "cd /d hand-gesture-app && uv run python -m src.main"
+	@echo "All components started in separate windows. Use 'make stop' to stop background processes."
+else
 	@echo "Starting all MuseAid components..."
 	cd server          && uv run uvicorn museaid_server.main:app --reload --host 0.0.0.0 --port 8000 &
 	@sleep 3
@@ -46,13 +54,19 @@ run-all: sync
 	cd hand-gesture-app && uv run python -m src.main &
 	@echo "All components started. Press Ctrl+C to stop."
 	@wait
+endif
 
 ## stop: Kill all MuseAid-related processes
 stop:
+ifeq ($(OS),Windows_NT)
+	-powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'museaid_server.main:app|music-app|python -m src.main' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
+	@echo "Stopped all MuseAid processes."
+else
 	-pkill -f "uvicorn museaid_server" 2>/dev/null || true
 	-pkill -f "music.app" 2>/dev/null || true
 	-pkill -f "src.main" 2>/dev/null || true
 	@echo "Stopped all MuseAid processes."
+endif
 
 # ---------- Setup ----------
 
