@@ -63,7 +63,10 @@ def main() -> None:
     # (e.g. process-level quit requests).
     app.aboutToQuit.connect(window._shutdown)
 
-    window.showFullScreen()
+
+    #TODO CHANGE
+    # window.showFullScreen()
+    window.show()
 
     sys.exit(app.exec())
 
