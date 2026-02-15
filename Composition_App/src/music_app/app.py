@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import os
+from io import BytesIO
 from pathlib import Path
+import wave
 
-from PyQt6.QtCore import QEasingCurve, QEvent, QPropertyAnimation, Qt
+import numpy as np
+import requests
+from PyQt6.QtCore import QEasingCurve, QEvent, QPropertyAnimation, Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QKeyEvent
 from PyQt6.QtWidgets import (
     QApplication,
@@ -20,6 +25,96 @@ from .models import Sequence, PITCH_ORDER, KEY_SIGNATURES
 from .server_client import ServerClient
 from .staff_widget import StaffWidget
 from . import dbUtil
+
+
+class SttRecordAndSendWorker(QThread):
+    """Background worker: record microphone, transcribe via ElevenLabs, POST to server."""
+
+    status = pyqtSignal(str)
+    transcribed = pyqtSignal(str)
+    server_response = pyqtSignal(str)
+    failed = pyqtSignal(str)
+
+    def __init__(self, server_url: str | None = None, parent=None) -> None:
+        super().__init__(parent)
+        self._url = server_url or "http://localhost:8000"
+        self._recording = True
+        self._chunks: list[np.ndarray] = []
+        self._sample_rate = 16_000
+
+    def stop_recording(self) -> None:
+        """Signal the worker loop to stop recording and continue processing."""
+        self._recording = False
+
+    def _emit_status(self, message: str) -> None:
+        self.status.emit(message)
+
+    @staticmethod
+    def _wav_bytes_from_float32_mono(samples: np.ndarray, sample_rate: int) -> bytes:
+        clipped = np.clip(samples, -1.0, 1.0)
+        pcm = (clipped * 32767.0).astype(np.int16)
+        with BytesIO() as buffer:
+            with wave.open(buffer, "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(sample_rate)
+                wf.writeframes(pcm.tobytes())
+            return buffer.getvalue()
+
+    def run(self) -> None:  # noqa: D401
+        try:
+            from dotenv import load_dotenv
+            import sounddevice as sd
+            from elevenlabs.client import ElevenLabs
+
+            load_dotenv()
+            api_key = os.getenv("ELEVENLABS_API_KEY")
+            if not api_key:
+                raise RuntimeError("Missing ELEVENLABS_API_KEY in environment/.env")
+
+            def _callback(indata, _frames, _time, status):
+                if status:
+                    print(f"[STT mic] {status}")
+                self._chunks.append(indata.copy())
+
+            self._emit_status("STT: recording... click STT again to stop")
+            with sd.InputStream(
+                samplerate=self._sample_rate,
+                channels=1,
+                dtype="float32",
+                callback=_callback,
+            ):
+                while self._recording:
+                    self.msleep(50)
+
+            if not self._chunks:
+                raise RuntimeError("No audio captured from microphone")
+
+            mono = np.concatenate(self._chunks, axis=0).reshape(-1)
+            wav_bytes = self._wav_bytes_from_float32_mono(mono, self._sample_rate)
+
+            self._emit_status("STT: transcribing with ElevenLabs...")
+            client = ElevenLabs(api_key=api_key)
+            transcription = client.speech_to_text.convert(
+                file=BytesIO(wav_bytes),
+                model_id="scribe_v2",
+                language_code="eng",
+            )
+            text = (transcription.text or "").strip()
+            if not text:
+                raise RuntimeError("Transcription returned empty text")
+            self.transcribed.emit(text)
+
+            self._emit_status("STT: sending transcription to server...")
+            resp = requests.post(
+                f"{self._url.rstrip('/')}/speech",
+                json={"text": text},
+                timeout=45,
+            )
+            resp.raise_for_status()
+            self.server_response.emit(resp.text)
+        except Exception as exc:
+            self.failed.emit(str(exc))
 
 
 class MainWindow(QMainWindow):
@@ -77,6 +172,7 @@ class MainWindow(QMainWindow):
         self._applying_key_cycle = False
         self._project_root = data_dir.parent
         self._shutdown_complete = False
+        self._stt_worker: SttRecordAndSendWorker | None = None
 
         # ── Widgets ──────────────────────────────────────────────
         self._staff = StaffWidget()
@@ -847,8 +943,50 @@ class MainWindow(QMainWindow):
 
     def _on_stt_button_clicked(self) -> None:
         """Handle STT (Speech-to-Text) button click."""
-        # TODO: Implement speech-to-text functionality
-        # GEMINI CLAL HERE
+        if self._stt_worker is not None and self._stt_worker.isRunning():
+            self._status.showMessage("STT: stopping recording...")
+            self._stt_button.setEnabled(False)
+            self._stt_worker.stop_recording()
+            return
+
+        server_url = os.environ.get("MUSEAID_SERVER_URL", "http://localhost:8000")
+        worker = SttRecordAndSendWorker(server_url=server_url, parent=self)
+        worker.status.connect(self._on_stt_status)
+        worker.transcribed.connect(self._on_stt_transcribed)
+        worker.server_response.connect(self._on_stt_server_response)
+        worker.finished.connect(self._on_stt_worker_finished)
+        worker.failed.connect(self._on_stt_failed)
+
+        self._stt_worker = worker
+        self._stt_button.setText("Stop STT")
+        self._stt_button.setEnabled(True)
+        self._status.showMessage("STT: recording... click STT again to stop")
+        worker.start()
+
+    def _on_stt_status(self, message: str) -> None:
+        self._status.showMessage(message)
+
+    def _on_stt_transcribed(self, text: str) -> None:
+        preview = text if len(text) <= 96 else f"{text[:93]}..."
+        self._status.showMessage(f"STT transcription: {preview}")
+
+    def _on_stt_server_response(self, server_payload: str) -> None:
+        self._status.showMessage(f"STT server response: {server_payload[:120]}")
+
+    def _on_stt_failed(self, error: str) -> None:
+        self._status.showMessage("STT failed. Check ELEVENLABS_API_KEY, microphone access, and server reachability.")
+        QMessageBox.warning(
+            self,
+            "STT Failed",
+            f"Speech-to-text failed: {error}",
+        )
+
+    def _on_stt_worker_finished(self) -> None:
+        self._stt_button.setText("STT")
+        self._stt_button.setEnabled(True)
+        if self._stt_worker is not None:
+            self._stt_worker.deleteLater()
+            self._stt_worker = None
 
     def _export_midi(self) -> None:
         """Export current sequence as MIDI."""
@@ -1021,6 +1159,13 @@ class MainWindow(QMainWindow):
         if self._shutdown_complete:
             return
         self._shutdown_complete = True
+
+        if self._stt_worker is not None and self._stt_worker.isRunning():
+            try:
+                self._stt_worker.stop_recording()
+                self._stt_worker.wait(3000)
+            except Exception:
+                pass
 
         # Stop local playback first so no more timer callbacks fire during teardown.
         try:

@@ -11,6 +11,9 @@ dependencies = [
     "scipy>=1.12",
     "mido>=1.3",
     "websockets>=14.0",
+    "requests>=2.31",
+    "elevenlabs>=1.7.0",
+    "sounddevice>=0.4.7",
     "python-dotenv>=1.0",
     "pymongo>=4.0",
 ]
