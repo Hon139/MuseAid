@@ -9,7 +9,7 @@ DIST_DIR = dist
 
 # Phony targets
 .PHONY: help all build clean install test run dev lint format setup \
-	sync server composition-app gesture-app video-streaming run-all stop install-python build-gem run-gem
+	sync server composition-app gesture-app video-streaming video-streaming-system-deps run-all stop install-python build-gem run-gem
 
 ## all: Build the entire project
 all: clean build
@@ -39,8 +39,18 @@ gesture-app:
 	cd hand-gesture-app && $(UV_SYNC) && uv run python -m src.main
 
 ## video-streaming: Run Raspberry Pi camera MJPEG streamer on port 7123
-video-streaming: build
+video-streaming: build video-streaming-system-deps
 	cd video-streaming && $(UV_SYNC) && uv run python ../video_streaming.py
+
+## video-streaming-system-deps: Install OS packages needed by picamera2/python-prctl
+video-streaming-system-deps:
+	@if [ -f /etc/os-release ]; then . /etc/os-release; fi; \
+	if echo "$${ID_LIKE:-} $${ID:-}" | grep -Eiq "debian|ubuntu"; then \
+		echo "Installing video-streaming system deps (libcap-dev)..."; \
+		sudo apt-get update && sudo apt-get install -y libcap-dev; \
+	else \
+		echo "Skipping auto-install: non Debian/Ubuntu distro. Install libcap development headers manually."; \
+	fi
 
 ## run-all: Launch server, composition app, and gesture app concurrently
 run-all: sync
@@ -89,7 +99,7 @@ setup:
 # ---------- Build / Clean ----------
 
 ## build: Create / refresh virtual environments for all sub-projects
-build:
+build: video-streaming-system-deps
 	@echo "Building $(PROJECT_NAME) — syncing virtual environments..."
 	cd server          && $(UV_SYNC)
 	cd Composition_App && $(UV_SYNC)
