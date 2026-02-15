@@ -40,14 +40,14 @@ gesture-app:
 
 ## video-streaming: Run Raspberry Pi camera MJPEG streamer on port 7123
 video-streaming: build video-streaming-system-deps
-	cd video-streaming && $(UV_SYNC) && uv run python ../video_streaming.py
+	cd video-streaming && /usr/bin/python3 ../video_streaming.py
 
 ## video-streaming-system-deps: Install OS packages needed by picamera2/python-prctl
 video-streaming-system-deps:
 	@if [ -f /etc/os-release ]; then . /etc/os-release; fi; \
 	if echo "$${ID_LIKE:-} $${ID:-}" | grep -Eiq "debian|ubuntu"; then \
-		echo "Installing video-streaming system deps (libcap-dev)..."; \
-		sudo apt-get update && sudo apt-get install -y libcap-dev; \
+		echo "Installing video-streaming system deps (libcap-dev, python3-libcamera, python3-picamera2)..."; \
+		sudo apt-get update && sudo apt-get install -y libcap-dev python3-libcamera python3-picamera2; \
 	else \
 		echo "Skipping auto-install: non Debian/Ubuntu distro. Install libcap development headers manually."; \
 	fi
