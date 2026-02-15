@@ -12,5 +12,5 @@ services:
       - HEADLESS=1
       - ENABLE_MJPEG=1
       - MJPEG_PORT=8090
-      - MUSEAID_SERVER_URL=http://100.120.43.63:8000
+      - MUSEAID_SERVER_URL=http://100.73.249.6:8000
     restart: unless-stopped
