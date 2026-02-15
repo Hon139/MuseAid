@@ -229,8 +229,18 @@ class MainWindow(QMainWindow):
         content_layout.addWidget(self._left_panel)
         content_layout.addWidget(self._scroll, stretch=1)
 
+        # Gesture guide strip (above keyboard-controls status line)
+        self._gesture_guide_label = QLabel(
+            "Gestures: Swipe ↑=PITCH_UP, Swipe ↓=PITCH_DOWN, Open-palm ←/→=SCROLL FWD/BACK, "
+            "Peace=SWITCH_STAFF, Pinch=TOGGLE_PLAYBACK, Thumb+Index+Middle=ADD_NOTE, "
+            "Pinky only=DELETE_NOTE, Index+Pinky=TOGGLE_INSTRUMENT, "
+            "Index+Middle+Ring=SPLIT_NOTE, Thumb+Pinky=MERGE_NOTE, Fist=MAKE_REST"
+        )
+        self._gesture_guide_label.setWordWrap(False)
+
         layout.addWidget(self._top_bar)
         layout.addWidget(self._content_row, stretch=1)
+        layout.addWidget(self._gesture_guide_label)
         self.setCentralWidget(central)
         self.setFocus()
         self._reset_key_cycle_memory()
@@ -473,6 +483,15 @@ class MainWindow(QMainWindow):
         )
         self._title_label.setStyleSheet(
             f"font-size: 14px; font-weight: 700; padding: 8px 10px; color: {title_color}; background: transparent;"
+        )
+        self._gesture_guide_label.setStyleSheet(
+            f"background: {header_bg};"
+            f"border-top: 1px solid {header_border};"
+            f"border-bottom: 1px solid {header_border};"
+            f"padding: 4px 10px;"
+            f"color: {title_color};"
+            "font-size: 11px;"
+            "font-weight: 600;"
         )
         self._left_panel.setStyleSheet(
             f"background: {scroll_bg};"

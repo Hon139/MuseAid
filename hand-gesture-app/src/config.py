@@ -14,6 +14,12 @@ GESTURE_TOGGLE_PLAYBACK = "TOGGLE_PLAYBACK"
 GESTURE_SCROLL_FORWARD = "SCROLL_FORWARD"
 GESTURE_SCROLL_BACKWARD = "SCROLL_BACKWARD"
 GESTURE_SWITCH_STAFF = "SWITCH_STAFF"
+GESTURE_ADD_NOTE = "ADD_NOTE"
+GESTURE_DELETE_NOTE = "DELETE_NOTE"
+GESTURE_TOGGLE_INSTRUMENT = "TOGGLE_INSTRUMENT"
+GESTURE_SPLIT_NOTE = "SPLIT_NOTE"
+GESTURE_MERGE_NOTE = "MERGE_NOTE"
+GESTURE_MAKE_REST = "MAKE_REST"
 
 ALL_GESTURES = [
     GESTURE_PITCH_UP,
@@ -22,6 +28,12 @@ ALL_GESTURES = [
     GESTURE_SCROLL_FORWARD,
     GESTURE_SCROLL_BACKWARD,
     GESTURE_SWITCH_STAFF,
+    GESTURE_ADD_NOTE,
+    GESTURE_DELETE_NOTE,
+    GESTURE_TOGGLE_INSTRUMENT,
+    GESTURE_SPLIT_NOTE,
+    GESTURE_MERGE_NOTE,
+    GESTURE_MAKE_REST,
 ]
 
 # ---------------------------------------------------------------------------
@@ -101,6 +113,12 @@ PEACE_SIGN_FRAME_WINDOW = 8
 # least this many frames to be considered stable (avoids misfires from
 # transient finger positions).
 PEACE_SIGN_MIN_HOLD_FRAMES = 4
+
+# ---------------------------------------------------------------------------
+# Static-pose command gestures (Add/Delete/Toggle/Split/Merge/Rest)
+# ---------------------------------------------------------------------------
+STATIC_POSE_FRAME_WINDOW = 8
+STATIC_POSE_MIN_HOLD_FRAMES = 4
 
 # ---------------------------------------------------------------------------
 # Pinch detection (thumb-index tap for Toggle Playback)

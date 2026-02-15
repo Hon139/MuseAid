@@ -1,8 +1,8 @@
 """
 Gesture classifier.
 
-Uses the finger-state utility and the motion history buffer to detect the
-five supported gestures.  Each detector method returns a ``(gesture_name,
+Uses the finger-state utility and the motion history buffer to detect
+gesture commands. Each detector method returns a ``(gesture_name,
 confidence)`` tuple or ``None``.
 
 Detection overview
@@ -30,13 +30,19 @@ from dataclasses import dataclass
 import numpy as np
 
 from src.config import (
+    GESTURE_ADD_NOTE,
     GESTURE_COOLDOWN_S,
+    GESTURE_DELETE_NOTE,
+    GESTURE_MAKE_REST,
+    GESTURE_MERGE_NOTE,
     GESTURE_PITCH_DOWN,
     GESTURE_PITCH_UP,
     GESTURE_SCROLL_BACKWARD,
     GESTURE_SCROLL_FORWARD,
+    GESTURE_SPLIT_NOTE,
     GESTURE_SWITCH_STAFF,
     GESTURE_TOGGLE_PLAYBACK,
+    GESTURE_TOGGLE_INSTRUMENT,
     INDEX_TIP,
     MIN_FRAMES_FOR_DETECTION,
     PALM_SWIPE_DIRECTIONALITY_RATIO,
@@ -47,6 +53,8 @@ from src.config import (
     PINCH_DISTANCE_THRESHOLD,
     PINCH_FRAME_WINDOW,
     PINCH_OPEN_THRESHOLD,
+    STATIC_POSE_FRAME_WINDOW,
+    STATIC_POSE_MIN_HOLD_FRAMES,
     SWIPE_DIRECTIONALITY_RATIO,
     SWIPE_FRAME_WINDOW,
     SWIPE_MIN_DISPLACEMENT,
@@ -78,6 +86,15 @@ class GestureDetector:
         # recently.  The gesture fires on the transition from inactive -> active,
         # preventing repeated firing while the pose is held.
         self._peace_was_inactive: bool = True
+        # Static-pose command gating (fire on inactive -> active transition).
+        self._pose_was_inactive: dict[str, bool] = {
+            GESTURE_ADD_NOTE: True,
+            GESTURE_DELETE_NOTE: True,
+            GESTURE_TOGGLE_INSTRUMENT: True,
+            GESTURE_SPLIT_NOTE: True,
+            GESTURE_MERGE_NOTE: True,
+            GESTURE_MAKE_REST: True,
+        }
 
     # ------------------------------------------------------------------
     # Public API
@@ -101,6 +118,7 @@ class GestureDetector:
             self._detect_palm_swipe,   # most specific: requires open palm
             self._detect_pinch,        # thumb-index tap (toggle playback)
             self._detect_peace_sign,   # peace sign (switch edit staff)
+            self._detect_static_pose_commands,
             self._detect_swipe,        # least specific: index-only + displacement
         ]
         for detector in detectors:
@@ -249,6 +267,72 @@ class GestureDetector:
         self._peace_was_inactive = False
         confidence = min(1.0, peace_count / len(recent))
         return (GESTURE_SWITCH_STAFF, confidence)
+
+    # ------------------------------------------------------------------
+    # Static-pose command detection (Add/Delete/Toggle/Split/Merge/Rest)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _matches_pose(f: FingerState, gesture: str) -> bool:
+        """Return True if ``FingerState`` matches a static command pose."""
+        if gesture == GESTURE_ADD_NOTE:
+            # Thumb + index + middle
+            return f.thumb and f.index and f.middle and not f.ring and not f.pinky
+        if gesture == GESTURE_DELETE_NOTE:
+            # Pinky only
+            return (not f.thumb) and (not f.index) and (not f.middle) and (not f.ring) and f.pinky
+        if gesture == GESTURE_TOGGLE_INSTRUMENT:
+            # "Rock" sign: index + pinky
+            return (not f.thumb) and f.index and (not f.middle) and (not f.ring) and f.pinky
+        if gesture == GESTURE_SPLIT_NOTE:
+            # Index + middle + ring
+            return (not f.thumb) and f.index and f.middle and f.ring and (not f.pinky)
+        if gesture == GESTURE_MERGE_NOTE:
+            # Shaka: thumb + pinky
+            return f.thumb and (not f.index) and (not f.middle) and (not f.ring) and f.pinky
+        if gesture == GESTURE_MAKE_REST:
+            # Fist / closed hand
+            return f.count_extended() == 0
+        return False
+
+    def _detect_static_pose_commands(
+        self,
+        buffer: MotionBuffer,
+        finger_state: FingerState,
+    ) -> tuple[str, float] | None:
+        """Detect static command poses with hold + transition gating."""
+        ordered = [
+            GESTURE_ADD_NOTE,
+            GESTURE_DELETE_NOTE,
+            GESTURE_TOGGLE_INSTRUMENT,
+            GESTURE_SPLIT_NOTE,
+            GESTURE_MERGE_NOTE,
+            GESTURE_MAKE_REST,
+        ]
+
+        frames = buffer.recent(STATIC_POSE_FRAME_WINDOW)
+        if len(frames) < STATIC_POSE_MIN_HOLD_FRAMES:
+            return None
+        recent = frames[-STATIC_POSE_MIN_HOLD_FRAMES:]
+
+        for gesture in ordered:
+            is_now = self._matches_pose(finger_state, gesture)
+            if not is_now:
+                self._pose_was_inactive[gesture] = True
+                continue
+
+            if not self._pose_was_inactive.get(gesture, True):
+                continue
+
+            hold_count = sum(1 for fr in recent if self._matches_pose(fr.finger_state, gesture))
+            if hold_count < STATIC_POSE_MIN_HOLD_FRAMES:
+                continue
+
+            self._pose_was_inactive[gesture] = False
+            confidence = min(1.0, hold_count / len(recent))
+            return (gesture, confidence)
+
+        return None
 
     # ------------------------------------------------------------------
     # Pinch detection (thumb-index tap for Toggle Playback)
