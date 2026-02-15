@@ -31,7 +31,7 @@ def main() -> None:
     """Launch the music app."""
     root = find_project_root()
     data_dir = root / "data"
-    example_path = root / "examples" / "Amazing_Grace.json"
+    example_path = root / "examples" / "c_major_scale.json"
 
     # Auto-generate placeholder samples if the data directory is empty or missing
     if not data_dir.exists() or not any(data_dir.iterdir()):

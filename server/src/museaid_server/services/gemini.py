@@ -19,6 +19,25 @@ load_dotenv(dotenv_path=Path(__file__).resolve().parents[4] / ".env")
 
 MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
+
+def _load_extra_prompt() -> str:
+    """Load optional workspace prompt appendix if present."""
+    repo_root = Path(__file__).resolve().parents[4]
+    candidates = [
+        repo_root / "message (4).txt",
+        repo_root / "message\\ (4).txt",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            try:
+                return candidate.read_text(encoding="utf-8").strip()
+            except Exception:
+                return ""
+    return ""
+
+
+_EXTRA_PROMPT = _load_extra_prompt()
+
 # ── System prompt sent to Gemini alongside the user instruction ──────
 
 SYSTEM_PROMPT = """\
@@ -35,6 +54,9 @@ Each note has: pitch (e.g. "C4", "REST"), duration (beats), beat
 (start position), note_type ("whole"|"half"|"quarter"|"eighth"), and
 instrument (0 or 1).
 """
+
+if _EXTRA_PROMPT:
+    SYSTEM_PROMPT = f"{SYSTEM_PROMPT}\n\n{_EXTRA_PROMPT}"
 
 
 async def edit_sequence(
