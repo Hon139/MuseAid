@@ -120,8 +120,8 @@ class MainWindow(QMainWindow):
         self._bank_combo_boxes: dict[int, QComboBox] = {}
         self._left_panel = QWidget()
         self._left_panel.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
-        self._left_panel.setMinimumWidth(150)
-        self._left_panel.setMaximumWidth(150)
+        self._left_panel.setMinimumWidth(220)
+        self._left_panel.setMaximumWidth(220)
         
         # Create instrument rows and position them to align with staff lines
         available_banks = self._audio.available_sample_banks()
@@ -140,15 +140,15 @@ class MainWindow(QMainWindow):
         for inst in (0, 1):
             row = QWidget(self._left_panel)
             row_layout = QHBoxLayout(row)
-            row_layout.setContentsMargins(6, 0, 6, 0)
+            row_layout.setContentsMargins(6, 0, 20, 0)
             row_layout.setSpacing(4)
 
             label = QLabel(f"I{inst + 1}")
             label.setMinimumWidth(14)
             combo = QComboBox()
             combo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-            combo.setMinimumWidth(110)
-            combo.setMaximumWidth(120)
+            combo.setMinimumWidth(160)
+            combo.setMaximumWidth(180)
             combo.setMinimumHeight(22)
             combo.setToolTip("Select default sample bank")
             for bank in available_banks:
@@ -189,7 +189,7 @@ class MainWindow(QMainWindow):
             
             # Position the row to align with its staff
             row.move(0, staff_positions[inst] - 11)  # -11 to center the 22px high row
-            row.resize(150, 22)
+            row.resize(220, 22)
             self._instrument_rows[inst] = row
 
         # Scroll area for the staff (in case it gets tall with 2 lines)
@@ -496,8 +496,8 @@ class MainWindow(QMainWindow):
         self._left_panel.setStyleSheet(
             f"background: {scroll_bg};"
             "border: none;"
-            f"min-width: 150px;"
-            f"max-width: 150px;"
+            f"min-width: 220px;"
+            f"max-width: 220px;"
         )
         self._content_row.setStyleSheet(f"background: {scroll_bg};")
         button_style = (
@@ -523,12 +523,17 @@ class MainWindow(QMainWindow):
             "  border-radius: 8px;"
             f"  color: {button_fg};"
             "  font-size: 11px;"
-            "  padding: 2px 18px 2px 6px;"
+            "  padding: 2px 22px 2px 8px;"
             "  outline: none;"
+            "  margin-right: 2px;"
             "}"
             f"QComboBox:hover {{ background: {button_hover}; border-radius: 8px; }}"
             f"QComboBox:focus {{ background: {button_hover}; border: 2px solid {button_border}; border-radius: 8px; outline: none; }}"
             f"QComboBox:pressed {{ background: {button_press}; border-radius: 8px; }}"
+            "QComboBox::drop-down {"
+            "  border: none;"
+            "  width: 20px;"
+            "}"
             "QComboBox QAbstractItemView {"
             f"  background: {button_bg};"
             f"  border: 1px solid {button_border};"
